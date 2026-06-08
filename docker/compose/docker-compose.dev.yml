@@ -2,8 +2,8 @@
 # AgentID-Chain — Dev Compose (P1.1 PostgreSQL 16)
 # =============================================================================
 # 本文件在 P1 阶段逐步累积：
-#   P1.1 [本提交]   PostgreSQL 16
-#   P1.2            Redis 7
+#   P1.1            PostgreSQL 16
+#   P1.2 [本提交]   Redis 7
 #   P1.3            agentid_net 网络
 #   P1.4            命名卷
 #   P1.5            init-databases.sql 挂载
@@ -31,5 +31,22 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
 volumes:
   pg_data:
+  redis_data:

@@ -1,0 +1,18 @@
+{
+  "project_id": "AgentID-Chain",
+  "check_time": "2026-06-08T16:37:57.996715",
+  "code_total_size_mb": 0.03,
+  "code_file_count": 3,
+  "git_valid_ratio": 0,
+  "git_error": "GitPython not installed",
+  "doc_coverage_ratio": 0.0,
+  "doc_code_modules": 3,
+  "doc_modules": 9,
+  "doc_matched_modules": 0,
+  "func_comment_ratio": 1.0,
+  "func_total": 3,
+  "func_commented": 3,
+  "decision": "full",
+  "reason": "代码体积0.03MB ≤ 5.0MB，全量解析（未满足：文档覆盖率0% < 40%,Git 规范提交0% < 30%）",
+  "suggestions": []
+}

@@ -6,8 +6,8 @@
 #   P1.2            Redis 7
 #   P1.3            agentid_net 网络
 #   P1.4            命名卷
-#   P1.5 [本提交]   init-databases.sql 挂载
-#   P1.6            mock-chain 服务
+#   P1.5            init-databases.sql 挂载
+#   P1.6 [本提交]   mock-chain 占位服务
 #   P1.7            完整 dev compose
 # =============================================================================
 
@@ -57,6 +57,46 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+  # P1.6: mock-chain 占位服务
+  # 当前使用 alpine:3.19 + 内联 Python HTTP server 提供 :8545 端口 + /healthz
+  # 待 P3.8 完成后替换为 agentid-chain/mock-chain:v2.0.1（实现真实 EVM JSON-RPC 子集）
+  mock-chain:
+    image: alpine:3.19
+    container_name: dev-mock-chain
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
+      AGENTID_CHAIN_DRIVER: "mock"
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache python3 >/dev/null 2>&1
+        exec python3 -u -c "
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/healthz':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'ok')
+                else:
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0x0\"}')
+            def log_message(self, *a, **k): pass
+        HTTPServer(('0.0.0.0', 8545), H).serve_forever()
+        "
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8545/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
 volumes:
   pg_data:

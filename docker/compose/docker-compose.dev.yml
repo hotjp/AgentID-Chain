@@ -1,0 +1,35 @@
+# =============================================================================
+# AgentID-Chain — Dev Compose (P1.1 PostgreSQL 16)
+# =============================================================================
+# 本文件在 P1 阶段逐步累积：
+#   P1.1 [本提交]   PostgreSQL 16
+#   P1.2            Redis 7
+#   P1.3            agentid_net 网络
+#   P1.4            命名卷
+#   P1.5            init-databases.sql 挂载
+#   P1.6            mock-chain 服务
+#   P1.7            完整 dev compose
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentid
+      POSTGRES_PASSWORD: agentid_dev
+      POSTGRES_DB: agentid
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentid -d agentid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pg_data:

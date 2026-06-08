@@ -1,0 +1,41 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Go
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Makefile
+[Makefile]
+indent_style = tab
+
+# YAML / Markdown / JSON / TS / JS use 2 spaces
+[*.{yml,yaml,md,markdown,json,jsonc,js,jsx,ts,tsx}]
+indent_size = 2
+
+# Protobuf
+[*.proto]
+indent_size = 2
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 2
+
+# Dockerfile
+[{Dockerfile,Dockerfile.*}]
+indent_size = 2
+
+# SQL
+[*.sql]
+indent_size = 2

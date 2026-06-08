@@ -17,6 +17,8 @@ coverage.out
 coverage.html
 *.prof
 *.pprof
+# Root-level built binary (cmd/agentid output when built without -o flag)
+/agentid
 
 # Secrets
 .env

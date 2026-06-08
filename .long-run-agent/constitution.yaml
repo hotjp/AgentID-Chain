@@ -1,25 +1,46 @@
 amendments: []
-core_principles:
-- description: 任务完成前应确保基本质量
-  gates: []
-  id: quality_first
-  name: 质量优先
-  type: MANDATORY
-- description: 任务文件中列出的交付物文件必须实际存在
-  gates:
-  - check_func: check_deliverables_exist
-    check_level: basic
-    description: 检查 deliverables 中的文件是否存在且包含代码
-    name: deliverables_exist
-    required: true
-    type: custom
-  id: deliverables_exist
-  name: 交付物必须存在
-  type: NON_NEGOTIABLE
-project:
-  description: 项目质量宪法
-  name: AgentID-Chain
-  ratified: '2024-03-09'
-  version: 1.0.0
 schema_version: '1.0'
+project:
+  name: AgentID-Chain
+  description: 项目质量宪法（v2.0.1 基线）
+  ratified: '2024-03-09'
+  version: 1.1.0
+core_principles:
+  - id: quality_first
+    name: 质量优先
+    type: MANDATORY
+    description: 任务完成前应确保基本质量
+    gates: []
+
+  - id: deliverables_exist
+    name: 交付物必须存在
+    type: NON_NEGOTIABLE
+    description: 任务文件中列出的交付物文件必须实际存在
+    gates:
+      - name: deliverables_exist
+        type: custom
+        check_func: check_deliverables_exist
+        check_level: basic
+        description: 检查 deliverables 中的文件是否存在且包含代码
+        required: true
+
+  # P0.7：覆盖率门 — 包级覆盖率必须 ≥ 70%
+  # 真实执行入口在 CI（.github/workflows/ci.yml）的 `go test -coverprofile`
+  # 此处为政策声明，便于 LRA `set ... completed` 时引用 / 自检
+  - id: coverage_check
+    name: 测试覆盖率门槛
+    type: NON_NEGOTIABLE
+    description: 包级 Go 测试覆盖率必须 ≥ 70%（NON_NEGOTIABLE）。来源：技术文档 §8 安全 & §10 贡献指南；CI 强制门禁。
+    gates:
+      - name: coverage_ge_70
+        type: custom
+        check_func: coverage_ge_70
+        check_level: basic
+        threshold: 0.70
+        description: |
+          包级 Go 测试覆盖率必须 ≥ 70%。
+          实际执行：CI 中 `go test ./... -coverprofile=coverage.out -covermode=atomic`，
+          然后用 `go tool cover -func=coverage.out | tail -1` 取 total 并比较 70%。
+          LRA 层面通过 check_func 钩子声明此政策；待后续实现 coverage_ge_70 检查器后自动生效。
+        required: true
 template_gates: {}

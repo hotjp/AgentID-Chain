@@ -1,96 +1,112 @@
-acceptance:
-- 文档已更新
-- 更新内容与业务需求一致
-- 格式规范
-description: 文档更新任务模板
-keywords:
-- 文档
-- 更新
-- docs
-- documentation
-- readme
-- api
 name: doc-update
+description: 文档更新任务模板（v2.0.1 — 含 frontmatter 要求）
+version: '1.1'
+keywords:
+  - 文档
+  - 更新
+  - docs
+  - documentation
+  - readme
+  - api
+  - changelog
+  - frontmatter
+acceptance:
+  - 文档已更新
+  - 更新内容与业务需求一致
+  - 格式规范（Markdown lint 通过 / frontmatter 完整）
+  - frontmatter 含 title/version/last_updated/audience 字段
 states:
-- pending
-- in_progress
-- completed
-structure: '# {{ id }}
-
+  - pending
+  - in_progress
+  - completed
+transitions:
+  pending:
+    - in_progress
+  in_progress:
+    - completed
+  completed: []
+template_engine: jinja2
+validation:
+  evidence_fields:
+    - 文档路径
+    - 变更摘要
+    - frontmatter
+  required_for_completion:
+    test_evidence: false
+    test_output: false
+    verification_steps: true
+    screenshot: false
+structure: |
+  # {{ id }}
 
   ## ⚠️ 重要提示（Agent 必读）
 
-
   **当前位置**: `.long-run-agent/tasks/{{id}}.md`（任务描述文件）
-
-
   **工作目录**: 项目根目录（`.long-run-agent` 的同级目录）
-
-
-  **产出物位置**: 请在项目适当位置更新文档（如 `README.md`, `docs/`, 或代码文件中的 docstring）
-
-
+  **产出物位置**: `README.md` / `docs/**/*.md` / 代码 docstring；技术文档基线 `docs/AgentID-Chain-技术文档-v2.0.1.md` **FROZEN**，只接受 bug 修复
   **这是配置文件**，不是最终产出！
-
 
   ## 关联业务任务
 
   {% if dependencies %}
-
   {% for dep in dependencies %}
-
   - {{ dep }}
-
   {% endfor %}
-
   {% else %}
-
   <!-- 无关联业务任务 -->
-
   {% endif %}
-
 
   ## 模块名称
 
   {{ module }}
 
-
   ## 更新范围
 
   {{ update_scope }}
-
 
   ## 用户需求
 
   {{ user_demand }}
 
-
   ## 需更新的文档列表
 
   <!-- Agent 自动定位 -->
-
   - [ ] {{ module }}/README.md
-
   - [ ] docs/{{ module }}/API.md
+  - [ ] docs/AgentID-Chain-技术文档-v2.0.1.md（仅 bug 修复）
 
-  - [ ] src/{{ module }}/__init__.py (docstring)
+  ## 📌 Frontmatter 要求（强制）
 
+  所有新增 / 大改的 markdown 文档必须包含以下 frontmatter（YAML 块在文件首行）：
+
+  ```yaml
+  ---
+  title: <文档标题>
+  version: <文档版本，遵循 SemVer，与项目 spec 解耦>
+  last_updated: <YYYY-MM-DD>
+  audience: [developer | operator | user | contributor]   # 至少 1 个
+  status: [draft | review | stable | deprecated]
+  related_spec: docs/AgentID-Chain-技术文档-v2.0.1.md       # 如适用
+  related_arch: docs/architecture.md                       # 如适用
+  refs:
+    - task_xxx_xx                                          # LRA 任务 ID
+  ---
+  ```
+
+  **小型增量更新**（< 20 行）可豁免 frontmatter；新文档与重写章节必须有。
+  **README.md / CHANGELOG.md** 习惯上不加 frontmatter，使用最上方 badge + 标题行替代。
 
   ## 更新内容
 
-  <!-- 增量更新，仅修改相关片段 -->
-
+  <!-- 增量更新，仅修改相关片段；保留差异最小 -->
 
   ## 更新说明
 
-  <!-- 记录更新原因和内容 -->
+  <!-- 记录更新原因、影响范围、回滚方法 -->
 
-  '
-template_engine: jinja2
-transitions:
-  completed: []
-  in_progress:
-  - completed
-  pending:
-  - in_progress
-version: '1.0'
+  ## 验证证据（完成前必填）
+
+  - [ ] **文档路径**: 列出所有改动的文件路径
+  - [ ] **变更摘要**: 概述每个文件改了什么
+  - [ ] **frontmatter**: 新文档/大改章节是否补齐（贴出 YAML 块）
+  - [ ] **格式**: `markdownlint` 或目视检查通过

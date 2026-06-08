@@ -1,36 +1,75 @@
-acceptance:
-- 数据完整性校验通过
-- 处理完成
-description: 数据处理流程模板
-keywords:
-- 数据
-- 采集
-- 清洗
-- 分析
-- ETL
-- pipeline
-- data
-- 处理
-- 转换
 name: data-pipeline
+description: 数据处理流程模板（v2.0.1 — Postgres/Redis/Outbox 友好）
+version: '2.1'
+keywords:
+  - 数据
+  - 采集
+  - 清洗
+  - 分析
+  - ETL
+  - pipeline
+  - data
+  - 处理
+  - 转换
+  - outbox
+  - migration
+acceptance:
+  - 数据完整性校验通过
+  - 幂等可重跑
+  - 处理完成
+  - 失败回滚策略明确
 states:
-- pending
-- running
-- failed
-- success
-structure: "# {{ id }}\n\n## ⚠️ 重要提示（Agent 必读）\n\n**当前位置**: `.long-run-agent/tasks/{{id}}.md`（任务描述文件）\n\
-  \n**工作目录**: 项目根目录（`.long-run-agent` 的同级目录）\n\n**产出物位置**: 请在 `data/`、`notebooks/`、`src/`\
-  \ 或适当位置创建\n\n**这是配置文件**，不是最终产出！\n\n## 数据源\n\n{% if data_source %}\n{{ data_source\
-  \ }}\n{% else %}\n<!-- 数据来源说明 -->\n{% endif %}\n\n## 处理步骤\n1. \n2. \n3. \n\n## 输出格式\n\
-  \n<!-- 输出数据格式 -->\n\n## 异常处理\n\n<!-- 异常情况处理 -->\n"
-template_engine: jinja2
-transitions:
-  failed:
+  - pending
   - running
-  pending:
-  - running
-  running:
   - failed
   - success
+transitions:
+  pending:
+    - running
+  running:
+    - failed
+    - success
+  failed:
+    - running
   success: []
-version: '2.0'
+template_engine: jinja2
+structure: |
+  # {{ id }}
+
+  ## ⚠️ 重要提示（Agent 必读）
+
+  **当前位置**: `.long-run-agent/tasks/{{id}}.md`（任务描述文件）
+  **工作目录**: 项目根目录（`.long-run-agent` 的同级目录）
+  **产出物位置**: `internal/storage/`、`migrations/`、`scripts/` 或适当位置
+  **这是配置文件**，不是最终产出！
+
+  ## 数据源
+
+  {% if data_source %}
+  {{ data_source }}
+  {% else %}
+  <!-- PostgreSQL 表 / Redis Stream / 链上事件 / Outbox -->
+  {% endif %}
+
+  ## 处理步骤
+  1. <!-- 取数 -->
+  2. <!-- 转换 -->
+  3. <!-- 写入 / 发布 -->
+
+  ## 输出格式
+
+  <!-- 目标表 / Stream / 文件结构 -->
+
+  ## 幂等性 & 重跑策略
+
+  <!-- 是否支持 idempotency key / 断点续传 / 全量重算 -->
+
+  ## 异常处理 & 回滚
+
+  <!-- 错误分类、DLQ、回滚 SQL / Redis 清理脚本 -->
+
+  ## 验证证据（完成前必填）
+
+  - [ ] **校验脚本**: 列出 row count / hash / 业务约束的检查命令
+  - [ ] **样本数据**: 至少 1 条端到端流水（input → output）
+  - [ ] **回滚验证**: 模拟失败，确认回滚正确

@@ -1,183 +1,159 @@
-acceptance:
-- 接口可调用
-- 测试通过
-- 无语法错误
-description: 代码模块开发模板
-keywords:
-- 接口
-- 函数
-- 模块
-- API
-- function
-- module
-- 实现
-- 开发
-- 代码
-- code
 name: code-module
+description: Go 代码模块开发模板（v2.0.1 — 含单测/集成/覆盖率字段）
+version: '2.2'
+keywords:
+  - 接口
+  - 函数
+  - 模块
+  - API
+  - function
+  - module
+  - 实现
+  - 开发
+  - 代码
+  - code
+  - go
+  - golang
+acceptance:
+  - 接口可调用
+  - 单元测试通过 (go test ./...)
+  - 集成测试通过 (go test -tags=integration ./...)
+  - 包级覆盖率 ≥ 70% (go test -coverprofile)
+  - golangci-lint 通过 (无 error 级别问题)
+  - 无语法错误 (go build ./...)
 states:
-- pending
-- in_progress
-- pending_test
-- test_failed
-- completed
-structure: '# {{ id }}
-
-
-  ## ⚠️ 重要提示（Agent 必读）
-
-
-  **当前位置**: `.long-run-agent/tasks/{{id}}.md`（任务描述文件）
-
-
-  **工作目录**: 项目根目录（`.long-run-agent` 的同级目录）
-
-
-  **产出物位置**: 请在 `src/`、`tests/` 或适当位置创建代码文件
-
-
-  **这是配置文件**，不是最终产出！
-
-
-  ## 概述
-
-
-  {{ description }}
-
-
-  ## 技术栈
-
-
-  {% if tech_stack %}
-
-  {{ tech_stack }}
-
-  {% else %}
-
-  <!-- 请指定技术栈 -->
-
-  {% endif %}
-
-
-  ## 输入输出
-
-
-  ### 输入
-
-  ```
-
-  {% if input_params %}
-
-  {{ input_params }}
-
-  {% else %}
-
-  <!-- 参数定义 -->
-
-  {% endif %}
-
-  ```
-
-
-  ### 输出
-
-  ```
-
-  {% if output_return %}
-
-  {{ output_return }}
-
-  {% else %}
-
-  <!-- 返回值定义 -->
-
-  {% endif %}
-
-  ```
-
-
-  ## 实现方案
-
-
-  <!-- 详细实现思路 -->
-
-
-  ## 测试用例
-
-  <!-- 测试场景 -->
-
-
-  ## 验证证据（完成前必填）
-
-
-  **⚠️ 标记 completed 前必须提供以下证据！**
-
-
-  - [ ] **代码实现**: 核心功能已实现
-
-  - [ ] **测试通过**: 单元测试/集成测试通过
-
-  - [ ] **无语法错误**: 代码可正常导入/编译
-
-  - [ ] **回归测试**: 未破坏已有功能
-
-
-  ### 测试命令
-
-  ```bash
-
-  # 粘贴测试命令
-
-  pytest tests/test_xxx.py -v
-
-  ```
-
-
-  ### 测试输出
-
-  ```
-
-  # 粘贴测试输出
-
-  ```
-
-
-  ### 截图（如适用）
-
-  <!-- UI任务请提供截图路径，如：verification/screenshot.png -->
-
-
-  ### 代码片段
-
-  ```python
-
-  # 关键代码片段（可选）
-
-  ```
-
-  '
-template_engine: jinja2
-transitions:
-  completed: []
-  in_progress:
-  - pending_test
-  pending:
+  - pending
   - in_progress
-  pending_test:
+  - pending_test
   - test_failed
   - completed
+transitions:
+  pending:
+    - in_progress
+  in_progress:
+    - pending_test
+  pending_test:
+    - test_failed
+    - completed
   test_failed:
-  - in_progress
+    - in_progress
+  completed: []
+template_engine: jinja2
 validation:
   evidence_fields:
-  - 代码实现
-  - 测试通过
-  - 无语法错误
-  - 回归测试
+    - 代码实现
+    - 单元测试
+    - 集成测试
+    - 覆盖率
+    - lint
+    - 回归测试
   required_for_completion:
-    screenshot: false
     test_evidence: true
     test_output: true
     verification_steps: true
+    screenshot: false
+    coverage_evidence: true
   test_commands: true
-version: '2.1'
+structure: |
+  # {{ id }}
+
+  ## ⚠️ 重要提示（Agent 必读）
+
+  **当前位置**: `.long-run-agent/tasks/{{id}}.md`（任务描述文件）
+  **工作目录**: 项目根目录（`.long-run-agent` 的同级目录）
+  **产出物位置**: 请在 `internal/`、`core/`、`cmd/`、`mcp/`、`a2a/`、`prompt/`、`gateway/` 或适当位置创建 Go 文件；测试文件 `*_test.go` 同包；集成测试用 `_integration_test.go` + `//go:build integration`
+  **这是配置文件**，不是最终产出！
+
+  ## 概述
+
+  {{ description }}
+
+  ## 架构分层
+
+  {% if layer %}
+  {{ layer }}
+  {% else %}
+  <!-- L1-Storage / L2-Domain / L3-Authz / L4-Service / L5-Gateway 之一；与 architecture.md 对齐 -->
+  {% endif %}
+
+  ## 技术栈
+
+  {% if tech_stack %}
+  {{ tech_stack }}
+  {% else %}
+  <!-- Go 1.26.1, connectrpc.com/connect, ent, pgx/v5, go-redis/v9, koanf, slog, otel, prometheus -->
+  {% endif %}
+
+  ## 接口契约（输入 / 输出）
+
+  ### 输入参数 / Request
+  ```go
+  {% if input_params %}{{ input_params }}{% else %}// type XxxRequest struct { ... }{% endif %}
+  ```
+
+  ### 输出 / Response
+  ```go
+  {% if output_return %}{{ output_return }}{% else %}// type XxxResponse struct { ... }{% endif %}
+  ```
+
+  ## 实现方案
+
+  <!-- 详细实现思路、状态机、错误码、并发与事务边界 -->
+
+  ## 测试用例
+
+  ### 单元测试场景
+  <!-- 列出 _test.go 中的 TestXxx 名称、覆盖的分支、边界、错误路径 -->
+
+  ### 集成测试场景（如适用）
+  <!-- _integration_test.go: 依赖 PostgreSQL/Redis/链 mock，覆盖端到端流程 -->
+
+  ## 验证证据（完成前必填）
+
+  **⚠️ 标记 completed 前必须提供以下证据！**
+
+  - [ ] **代码实现**: 核心功能已实现
+  - [ ] **单元测试**: go test ./... 通过
+  - [ ] **集成测试**: go test -tags=integration ./... 通过（如适用）
+  - [ ] **覆盖率**: 包级 ≥ 70%（粘贴 `go tool cover -func` 输出）
+  - [ ] **Lint**: golangci-lint run 通过（exit 0）
+  - [ ] **回归测试**: 未破坏已有功能
+
+  ### 单元测试命令
+  ```bash
+  go test ./<pkg>/... -race -v
+  ```
+
+  ### 单元测试输出
+  ```
+  # 粘贴 PASS / FAIL 与计数
+  ```
+
+  ### 集成测试命令（如适用）
+  ```bash
+  go test -tags=integration ./<pkg>/... -race -v
+  ```
+
+  ### 集成测试输出
+  ```
+  # 粘贴
+  ```
+
+  ### 覆盖率证据
+  ```bash
+  go test ./<pkg>/... -coverprofile=coverage.out -covermode=atomic
+  go tool cover -func=coverage.out | tail -20
+  ```
+  ```
+  # 粘贴 total 行；要求 ≥ 70.0%
+  ```
+
+  ### Lint 证据
+  ```bash
+  golangci-lint run ./<pkg>/...
+  ```
+
+  ### 代码片段（关键路径）
+  ```go
+  // 关键代码片段
+  ```

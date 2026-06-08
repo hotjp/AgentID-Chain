@@ -3,19 +3,26 @@
 # =============================================================================
 # 本文件在 P1 阶段逐步累积：
 #   P1.1            PostgreSQL 16
-#   P1.2 [本提交]   Redis 7
-#   P1.3            agentid_net 网络
+#   P1.2            Redis 7
+#   P1.3 [本提交]   agentid_net 网络
 #   P1.4            命名卷
 #   P1.5            init-databases.sql 挂载
 #   P1.6            mock-chain 服务
 #   P1.7            完整 dev compose
 # =============================================================================
 
+networks:
+  agentid_net:
+    name: agentid_net
+    driver: bridge
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: dev-postgres
     restart: unless-stopped
+    networks:
+      - agentid_net
     environment:
       POSTGRES_USER: agentid
       POSTGRES_PASSWORD: agentid_dev
@@ -35,6 +42,8 @@ services:
     image: redis:7-alpine
     container_name: dev-redis
     restart: unless-stopped
+    networks:
+      - agentid_net
     ports:
       - "6379:6379"
     volumes:

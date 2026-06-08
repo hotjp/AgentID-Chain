@@ -1,0 +1,107 @@
+# golangci-lint v2 configuration for AgentID-Chain
+# See: https://golangci-lint.run/product/configuration-v2/
+
+version: "2"
+
+run:
+  timeout: 10m
+  go: "1.26.1"
+  # Allow issues only on the main branch to keep CI signal-to-noise high.
+  # Tests for new branches can opt-in via the CLI flag.
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - gocritic
+    - gocyclo
+    - misspell
+    - revive
+
+  settings:
+    gocyclo:
+      # 复杂度阈值：超过 30 视为需要拆分
+      min-complexity: 30
+
+    gocritic:
+      enabled-checks:
+        - deferInLoop   # 禁止在循环中直接 defer（exitAfterDefer 已默认开启）
+
+    misspell:
+      locale: US
+
+    revive:
+      severity: warning
+      rules:
+        - name: var-naming
+        - name: package-comments
+        - name: dot-imports
+        - name: error-strings
+        - name: error-naming
+        - name: error-return
+        - name: exported
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+
+  exclusions:
+    # 通用噪音：来自第三方测试/生成代码
+    paths:
+      - ".*_test.go$"
+      - "testdata/"
+      - "vendor/"
+      - "third_party/"
+
+    rules:
+      # 测试文件允许显式 nolint 注释
+      - path: ".*_test\\.go$"
+        linters:
+          - errcheck
+          - gocritic
+          - revive
+        text: ".*"
+
+      # errcheck 在 defer 中调用是常见模式
+      - linters:
+          - errcheck
+        text: "Error return value of `.*` is not checked"
+
+      # 允许 _ = xxx 显式忽略
+      - linters:
+          - errcheck
+        text: "_ = .*"
+
+issues:
+  # 默认不修复，由人工处理
+  fix: false
+  max-issues-per-linter: 50
+  max-same-issues: 10
+  new: false
+  new-from-rev: HEAD
+
+# golangci-lint v2 中，gofmt / goimports 等格式类检查独立于 linters
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    paths:
+      - "vendor/"
+      - "third_party/"
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  tab-width: 4
+  show-stats: false

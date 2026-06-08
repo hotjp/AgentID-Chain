@@ -1,0 +1,388 @@
+# golangci-lint v2 完整参考配置（参考文档）
+#
+# 用途：作为本仓库 lint 规则的完整参考模板。
+# 实际生效的精简配置见 `.golangci.yml`。
+# 本文件**不**被 golangci-lint 自动加载（v2 只识别 .golangci.yml / .golangci.yaml）。
+#
+# 官方文档：https://golangci-lint.run/product/configuration-v2/
+# v1 → v2 迁移：https://golangci-lint.run/product/migration-guide/
+
+version: "2"
+
+# ============================================================
+# run: 全局运行参数
+# ============================================================
+run:
+  # 单次 lint 超时（解析 + 编译 + 静态分析）
+  timeout: 10m
+
+  # 显式指定 Go 工具链版本（与 go.mod 一致）
+  go: "1.26.1"
+
+  # 包含测试文件（默认 true）。设为 false 可仅 lint 生产代码
+  tests: true
+
+  # 仅在新增/修改的代码上报告问题（增量 lint）。需要 `golangci-lint cache` 支持
+  # new: false
+  # new-from-rev: HEAD
+  # new-from-patch: ""
+  # new-issues-only: false
+
+  # 允许的模块前缀
+  # modules-download-mode: readonly
+
+  # 并发 worker 数（默认等于 CPU 数）
+  # concurrency: 4
+
+  # 不读取 go 1.18+ 引入的 //go:build 之外的构建标签
+  # build-tags: []
+
+  # 跳过目录（支持 glob）
+  # skip-dirs: []
+  # skip-files: []
+
+# ============================================================
+# linters: 启用的检查器
+# ============================================================
+linters:
+  # 是否使用默认 linter 集合
+  # - true: 启用 default: standard | disable-all
+  # - false: 仅启用 enable 中的项
+  default: none
+
+  enable:
+    # === 基础静态分析 ===
+    - govet          # go vet：可疑构造、Printf 错误、shadow
+    - errcheck       # 未检查的 error 返回
+    - staticcheck    # 高级分析（来自 SA 系列检查）
+    - ineffassign    # 无效赋值
+    - unused         # 未使用的变量/常量/类型/函数
+    # === 风格与复杂度 ===
+    - gocritic       # 多种 Go 风格与正确性检查
+    - gocyclo        # 圈复杂度（默认阈值 30）
+    - gofmt          # gofmt 格式检查
+    - misspell       # 英文拼写检查
+    - revive         # golint 继任者，规则可配置
+    # === 按需启用（演示用，当前仓库关闭） ===
+    # - goimports     # import 分组排序（与 gofmt 二选一）
+    # - gosimple      # staticcheck 子集
+    # - stylecheck    # 风格检查（staticcheck 子集）
+    # - unparam       # 未使用的函数参数
+    # - unused        # 已包含
+    # - nakedret      # 过长裸返回
+    # - prealloc      # slice 预分配
+    # - exportloopref # loop 变量捕获（Go 1.22+ 已不需要）
+    # - thelper       # 测试 helper 检测
+    # - tparallel     # paralleltest 替代品
+    # - paralleltest  # t.Parallel() 检测
+    # - dupl          # 重复代码
+    # - funlen        # 函数长度
+    # - gocognit      # 认知复杂度（与 gocyclo 互补）
+    # - goconst       # 重复字符串常量化
+    # - godot         # 注释以句点结尾
+    # - godox         # TODO/FIXME/XXX 检测
+    # - mnd           # magic number 检测
+    # - nestif        # 嵌套 if 深度
+    # - nilerr        # nil error 覆盖
+    # - nlreturn      # return 前空行
+    # - noctx         # 不使用 context 的 HTTP/DB 调用
+    # - rowserrcheck  # sql.Rows.Err 未检查
+    # - sqlclosecheck # sql.Rows/Stmt 未关闭
+    # - testifylint   # testify 用法检查
+    # - testpackage   # 测试包名黑名单
+    # - wsl           # whitespace 检查（争议大，慎用）
+    # - cyclop        # 圈复杂度（package 级别）
+    # - decorder      # 类型/变量声明顺序
+    # - exhaustruct   # 结构体字面量完整性（争议大）
+    # - forbidigo     # 自定义禁止标识符（本项目计划用于 5 层规则，P0.3 暂不启用）
+    # - gocheckcompilerdirectives  # 编译指令错误
+    # - gochecksumtype               # sum type 检查（Go 1.26 新特性）
+
+  disable:
+    # - deadcode      # v2 已合并入 unused
+    # - varcheck      # v2 已合并入 unused
+    # - structcheck   # v2 已合并入 unused
+    # - scopelint     # v2 已并入 exportloopref（已不需要）
+
+  # ============================================================
+  # presets: 预设集合（按需启用）
+  # ============================================================
+  # presets:
+  #   - bugs
+  #   - unused
+  #   - performance
+  #   - style
+  #   - complexity
+  #   - formatting
+  #   - experimental
+  #   - metalinter
+
+  # ============================================================
+  # settings: 各 linter 的详细配置
+  # ============================================================
+  settings:
+    gocyclo:
+      # 圈复杂度阈值。>= 该值报错
+      min-complexity: 30
+      # 可选：检查特定文件类型
+      # skip-complex-statements: true
+
+    gocritic:
+      # 启用的具体检查项（按需）
+      enabled-checks:
+        - deferInLoop      # for 循环中直接 defer（资源泄漏）
+        - exitAfterDefer   # defer 后调用 os.Exit/log.Fatal
+        - sloppyReassign
+        - equalFold
+        - appendCombine
+        - boolExprSimplify
+        - builtinShadow
+        - commentedOutCode
+        - docStub
+        - earlyReturn
+        - emptyStringTest
+        - filepathJoin
+        - httpNoBody
+        - importShadow
+        - initClause
+        - methodExprCall
+        - nilValReturn
+        - paramTypeCombine
+        - rangeValCopy
+        - returnAfterHttpError
+        - sqlQuery
+        - stringConcatSimplify
+        - stringFormat
+        - stringOfInt
+        - switchTrue
+        - typeAssertChain
+        - typeDefFirst
+        - unslice
+        - unusedParam
+        - yodaStyleExpr
+        # - whyNoLint  # 性能影响，慎用
+        - wrapcheck    # error 包装检查
+        - importAlign  # 不建议开启
+      disabled-checks:
+        # 误报多的检查
+        # - hugeParam
+        # - rangeValCopy
+      # 标签最大长度（docStub 用）
+      # maxLitLength: 200
+
+    misspell:
+      locale: US
+      ignore-words: []
+      # 额外字典
+      # extra-dict: []
+
+    revive:
+      # 全局严重度
+      severity: warning
+      # confidence: 0.8
+      enable-all-rules: false
+      # 不启用的规则
+      # rules:
+      rules:
+        - name: var-naming        # 变量命名（驼峰）
+        - name: package-comments  # 包必须有注释
+        - name: dot-imports       # 禁止 dot import
+        - name: error-strings     # error 字符串不应大写/带标点
+        - name: error-naming      # error 变量以 Err/err 开头
+        - name: error-return      # error 必须是最后一个返回值
+        - name: exported          # 导出符号必须有注释
+        - name: indent-error-flow
+        - name: range             # for range 中使用 _ 忽略 index/value
+        - name: receiver-naming   # 接收者命名一致性
+        - name: time-naming       # time 单位后缀
+        - name: unexported-return
+        - name: var-declaration   # 短变量声明
+        - name: superfluous-else
+        - name: modifies-parameter
+        - name: defer
+        - name: unnecessary-stmt
+        - name: blank-imports
+        - name: confusing-naming
+        - name: early-return
+        - name: unused-parameter
+        - name: unreachable-code
+        # - name: max-public-structs  # 库 API 限定，本项目关闭
+
+    errcheck:
+      # 检查类型断言、构建标签等
+      check-type-assertions: true
+      check-blank: true
+      # 不检查的函数列表
+      # ignore: fmt.Print, fmt.Printf, fmt.Println
+      # ignore: github.com/pkg/errors.New
+      exclude-functions:
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - "*.Errorf"
+        - "*.Sprintf"
+        - "*.Fatal"
+        - "*.Fatalf"
+        - "*.Fatalln"
+        - "*.Panic"
+        - "*.Panicf"
+        - "*.Panicln"
+
+    govet:
+      # 启用所有检查
+      enable-all: true
+      # 关闭特定检查
+      disable:
+        - fieldalignment  # 内存对齐检查（争议大）
+        - shadow         # 变量遮蔽（按团队约定）
+      # 自定义 settings（v2 中部分 govet 检查有独立配置）
+      settings:
+        # 暂保持默认
+        # printf:
+        #   funcs:
+        #     - github.com/context.fmtContext
+        shadow:
+          strict: false
+
+    staticcheck:
+      # 默认启用所有 checks。可在代码中用 //lint:ignore 关闭
+      checks: ["all"]
+      # 自定义设置
+      # go: "1.26.1"
+
+    unused:
+      # 字段标记
+      field-writes-are-uses: false
+      # 参数检查
+      parameters-are-used: true
+      # local-uses-are-reads: false
+
+  # ============================================================
+  # exclusions: 排除规则
+  # ============================================================
+  exclusions:
+    # 整个目录排除
+    paths:
+      - ".*_test\\.go$"
+      - "testdata/"
+      - "vendor/"
+      - "third_party/"
+      - "examples/"
+      - "internal/generated/"
+
+    # 按模式排除
+    rules:
+      # 测试文件中允许所有 errcheck 警告
+      - path: ".*_test\\.go$"
+        linters:
+          - errcheck
+          - gocritic
+          - revive
+        text: ".*"
+
+      # 生成的 protobuf / ent 代码
+      - path: ".*\\.pb\\.go$"
+        linters:
+          - errcheck
+          - govet
+          - revive
+        text: ".*"
+
+      # 排除特定文本
+      - linters:
+          - gocritic
+        text: "exitAfterDefer"
+
+      # 按源代码行排除
+      # - source: "//nolint: gocritic"
+      #   linters:
+      #     - gocritic
+
+# ============================================================
+# formatters: 格式化器（v2 与 linters 分离）
+# ============================================================
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      # 简化代码（如移除冗余类型声明）
+      simplify: true
+    goimports:
+      # local-prefixes: "github.com/agentid-chain"
+  exclusions:
+    paths:
+      - "vendor/"
+      - "third_party/"
+      - "internal/generated/"
+
+# ============================================================
+# issues: 问题报告
+# ============================================================
+issues:
+  # 是否自动应用 --fix 建议（CI 中建议关闭）
+  fix: false
+
+  # 输出限定
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+  # 启用新代码检测（需 new-from-rev / new-from-patch 配合）
+  new: false
+  new-from-rev: HEAD
+  new-issues-only: false
+
+  # 按路径排除 issue（v1 兼容，v2 建议改用 linters.exclusions.paths）
+  # exclude-rules:
+  #   - path: "_test\\.go"
+  #     linters:
+  #       - errcheck
+
+  # 不再报告的 issue 标识（每个 use-case 全局唯一）
+  # exclude-use-default: false
+
+  # 报告全部 issue，包括已 exclude 的（调试用）
+  # show-stats: false
+
+# ============================================================
+# output: 输出格式
+# ============================================================
+output:
+  # 输出格式
+  # 可选: colored-line-number | line-number | json | checkstyle | code-climate | junit-xml | github-actions | teamcity
+  format: colored-line-number
+
+  # 是否打印引起问题的源代码行
+  print-issued-lines: true
+
+  # 是否打印 linter 名称
+  print-linter-name: true
+
+  # 制表符宽度
+  tab-width: 4
+
+  # 是否显示统计信息
+  show-stats: false
+
+  # 排序方式
+  sort-results: true
+
+  # 路径前缀（用于去除绝对路径前缀，便于阅读）
+  # path-prefix: ""
+  # 退出码
+  # exit-code: 1
+
+# ============================================================
+# severity: 严重度规则
+# ============================================================
+severity:
+  # 默认严重度
+  default: warning
+  # 提升为错误的规则
+  rules:
+    - linters:
+        - errcheck
+        - govet
+        - staticcheck
+      severity: error

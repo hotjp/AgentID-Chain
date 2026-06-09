@@ -1,0 +1,379 @@
+openapi: 3.0.3
+info:
+  title: AgentID-Chain API
+  description: |
+    AI Agent 分布式身份与权限网关 HTTP API
+    完整规范：https://github.com/agentid-chain/agentid-chain/blob/main/docs/api/openapi.yaml
+  version: 2.0.1
+  contact:
+    name: AgentID-Chain Team
+    url: https://github.com/agentid-chain/agentid-chain
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发
+  - url: https://api.agentid-chain.example.com
+    description: 生产环境
+
+tags:
+  - name: agents
+    description: Agent 管理
+  - name: aap
+    description: AAP 准入协议
+  - name: a2a
+    description: A2A Agent 间通信
+  - name: mcp
+    description: MCP LLM 工具调用
+  - name: health
+    description: 健康检查
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: 健康检查
+      responses:
+        '200':
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /live:
+    get:
+      tags: [health]
+      summary: 存活探针
+      responses:
+        '200':
+          description: 进程存活
+
+  /ready:
+    get:
+      tags: [health]
+      summary: 就绪探针
+      responses:
+        '200':
+          description: 流量就绪
+        '503':
+          description: 依赖未就绪
+
+  /v1/agents:
+    post:
+      tags: [agents]
+      summary: 注册新 Agent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: UUID 冲突
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /v1/agents/{uuid}:
+    parameters:
+      - in: path
+        name: uuid
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [agents]
+      summary: 查询 Agent
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [agents]
+      summary: 升级 Agent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeRequest'
+      responses:
+        '200':
+          description: 升级成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+    delete:
+      tags: [agents]
+      summary: 撤销 Agent
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 撤销成功
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/aap/challenge:
+    post:
+      tags: [aap]
+      summary: 获取 Challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [public_key]
+              properties:
+                public_key:
+                  type: string
+                  description: Ed25519 公钥 (base64)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  challenge:
+                    type: string
+                    description: 32 字节随机数 (base64)
+                  expires_in:
+                    type: integer
+                    description: 过期秒数
+
+  /v1/aap/verify:
+    post:
+      tags: [aap]
+      summary: 验证签名
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge, signature, public_key]
+              properties:
+                challenge:
+                  type: string
+                signature:
+                  type: string
+                public_key:
+                  type: string
+      responses:
+        '200':
+          description: 验证成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aap_token:
+                    type: string
+                    description: JWT (1h 有效期)
+                  expires_in:
+                    type: integer
+
+  /v1/a2a/negotiate:
+    post:
+      tags: [a2a]
+      summary: 颁发 A2A Token
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id, scope]
+              properties:
+                agent_id:
+                  type: string
+                  format: uuid
+                scope:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_in:
+                    type: integer
+                  public_key:
+                    type: string
+
+  /mcp/v1/rpc:
+    post:
+      tags: [mcp]
+      summary: MCP JSON-RPC 入口
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, method]
+              properties:
+                jsonrpc:
+                  type: string
+                  enum: ["2.0"]
+                id:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                method:
+                  type: string
+                params:
+                  type: object
+      responses:
+        '200':
+          description: JSON-RPC 响应
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        uptime_seconds:
+          type: number
+
+    Agent:
+      type: object
+      required: [agent_id, owner, level, status, created_at]
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        owner:
+          type: string
+        level:
+          type: string
+          enum: [test, prod, internal]
+        status:
+          type: string
+          enum: [active, suspended, revoked, expired]
+        created_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+        chain_tx_hash:
+          type: string
+          nullable: true
+
+    RegisterRequest:
+      type: object
+      required: [owner, level]
+      properties:
+        owner:
+          type: string
+          minLength: 1
+          maxLength: 128
+        level:
+          type: string
+          enum: [test, prod, internal]
+        metadata:
+          type: object
+
+    UpgradeRequest:
+      type: object
+      required: [new_level]
+      properties:
+        new_level:
+          type: string
+          enum: [test, prod, internal]
+
+    Problem:
+      type: object
+      description: RFC 7807 Problem Details
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        trace_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: 请求格式错误
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: 鉴权失败
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: 资源不存在
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

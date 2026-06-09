@@ -184,6 +184,10 @@ type Agent struct {
 	UpdatedAt    time.Time
 	BannedAt     *time.Time // 指针，封禁时填写；解封置 nil
 	ExpiresAt    *time.Time // 可选过期时间
+
+	// 审计字段（与 invariants.go 配套）
+	LastUpgradeBy   string             // 上次升级操作者 DID（NoSelfUpgradeInvariant 用）
+	TempPermissions map[uint]time.Time // 临时权限位 + 过期时间（TemporaryPermissionExpireInvariant 用）
 }
 
 // NewAgent 构造一个新 Agent（不校验完整状态机，仅做基础校验）。

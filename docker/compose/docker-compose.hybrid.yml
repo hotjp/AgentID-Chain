@@ -59,7 +59,10 @@ services:
       start_period: 5s
 
   mock-chain:
-    image: alpine:3.19
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.mock-chain
+    image: agentid-chain/mock-chain:dev
     container_name: hybrid-mock-chain
     restart: unless-stopped
     networks:
@@ -72,31 +75,22 @@ services:
     environment:
       AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
       AGENTID_CHAIN_DRIVER: "mock"
-    command:
-      - sh
-      - -c
-      - |
-        apk add --no-cache python3 >/dev/null 2>&1
-        exec python3 -u -c "
-        from http.server import BaseHTTPRequestHandler, HTTPServer
-        class H(BaseHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == '/healthz':
-                    self.send_response(200); self.end_headers(); self.wfile.write(b'ok')
-                else:
-                    self.send_response(200); self.end_headers(); self.wfile.write(b'{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0x0\"}')
-            def log_message(self, *a, **k): pass
-        HTTPServer(('0.0.0.0', 8545), H).serve_forever()
-        "
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+    command: ["--addr", "0.0.0.0:8545"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8545/healthz || exit 1"]
+      test: ["CMD", "/usr/local/bin/mock-chain", "--help"]
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 15s
+      start_period: 5s
 
   gateway:
-    image: alpine:3.19
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.gateway
+    image: agentid-chain/gateway:dev
     container_name: hybrid-gateway
     networks:
       - agentid_net
@@ -108,22 +102,27 @@ services:
       mock-chain:
         condition: service_healthy    # 关键: mock-chain healthy 后才能起
     environment:
-      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
-      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_SERVICE_NAME: "agentid-chain-gateway"
+      AGENTID_SERVICE_ROLE: "gateway"
+      AGENTID_STORAGE_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_STORAGE_REDIS_ADDR: "redis:6379"
       AGENTID_BACKEND_TYPE: "hybrid"
       AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
       AGENTID_CHAIN_DRIVER: "mock"
-      AGENTID_PRIVATE_KEY: "${AGENTID_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}"
+      AGENTID_LOG_LEVEL: "debug"
     ports:
       - "8080:8080"
       - "9090:9090"
       - "6060:6060"
-    command: ["sh", "-c", "echo 'gateway hybrid placeholder — P5 will replace this image' && sleep infinity"]
+    command: ["serve", "--config", "/etc/agentid/configs/backend.hybrid.yaml"]
+    volumes:
+      - ../../configs:/etc/agentid/configs:ro
     healthcheck:
-      test: ["CMD-SHELL", "true"]
+      test: ["CMD", "/usr/local/bin/agentid", "version"]
       interval: 30s
       timeout: 3s
       retries: 3
+      start_period: 5s
 
   auth-center:
     image: alpine:3.19
@@ -154,7 +153,10 @@ services:
       retries: 3
 
   cli:
-    image: alpine:3.19
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.cli
+    image: agentid-chain/cli:dev
     container_name: hybrid-cli
     networks:
       - agentid_net
@@ -162,10 +164,10 @@ services:
       gateway:
         condition: service_started
     environment:
-      AGENTID_ENDPOINT: "http://gateway:8080"
-      AGENTID_API_KEY: "${AGENTID_API_KEY:-devkey}"
-      AGENTID_BACKEND_TYPE: "hybrid"
-    command: ["sh", "-c", "echo 'cli placeholder' && sleep infinity"]
+      AGENTID_CLI_ENDPOINT: "http://gateway:8080"
+      AGENTID_CLI_MODE: "remote"
+    entrypoint: ["/usr/local/bin/agentid"]
+    command: ["version"]
     restart: "no"
 
 volumes:

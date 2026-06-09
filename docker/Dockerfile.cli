@@ -1,0 +1,63 @@
+# =============================================================================
+# AgentID-Chain CLI Dockerfile (v2.0.1)
+# =============================================================================
+# CLI 客户端镜像（用于 CronJob / CI / 一次性任务）
+#
+# 用法：
+#   docker build -f docker/Dockerfile.cli -t agentid-chain/cli:dev .
+#   docker run --rm agentid-chain/cli:dev version
+#   docker run --rm agentid-chain/cli:dev register --owner alice --public-key pk_xxx
+#   docker run --rm \
+#     -v $HOME/.agentid:/home/nonroot/.agentid:rw \
+#     agentid-chain/cli:dev prompt "register an agent for alice at level 2"
+# =============================================================================
+
+FROM golang:1.23-alpine AS builder
+
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build \
+      -trimpath \
+      -ldflags="-s -w \
+        -X 'main.Version=${VERSION}' \
+        -X 'main.Commit=${COMMIT}' \
+        -X 'main.BuildDate=${BUILD_DATE}'" \
+      -o /out/agentid \
+      ./cmd/agentid
+
+RUN /out/agentid version
+
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="agentid-chain-cli" \
+      org.opencontainers.image.description="AgentID-Chain CLI - register/upgrade/manage agents" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/agentid-chain/agentid-chain" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+COPY --from=builder /out/agentid /usr/local/bin/agentid
+
+USER nonroot:nonroot
+
+WORKDIR /home/nonroot
+
+# 配置 / 数据目录（volume 挂载点）
+VOLUME ["/home/nonroot/.agentid"]
+
+# 入口：agentid 二进制
+ENTRYPOINT ["/usr/local/bin/agentid"]
+CMD ["--help"]

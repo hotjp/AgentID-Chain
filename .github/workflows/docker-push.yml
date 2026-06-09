@@ -1,0 +1,173 @@
+name: docker-push
+
+# =============================================================================
+# AgentID-Chain Docker Hub 发布 (P14.11)
+# =============================================================================
+# 触发条件：
+#   - push tag v*.*.*
+#   - workflow_dispatch（手动触发）
+# 步骤：
+#   1. checkout
+#   2. setup-qemu（多架构）
+#   3. setup-buildx
+#   4. login DockerHub
+#   5. extract metadata（tags: vX.Y.Z + latest + sha-<7>）
+#   6. build & push（多架构）
+#   7. cosign sign
+# =============================================================================
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Manual tag to push (e.g. v2.0.1-rc1)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAMESPACE: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # for cosign keyless
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        if: env.IMAGE_NAMESPACE != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.IMAGE_NAMESPACE }}/gateway
+            ${{ env.IMAGE_NAMESPACE }}/cli
+            ${{ env.IMAGE_NAMESPACE }}/migration
+            ${{ env.IMAGE_NAMESPACE }}/mock-chain
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Set up Cosign
+        uses: sigstore/cosign-installer@v3
+
+      # ---------- Gateway ----------
+      - name: Build & push gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.gateway
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.IMAGE_NAMESPACE != '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---------- CLI ----------
+      - name: Build & push cli
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.cli
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.IMAGE_NAMESPACE != '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---------- Migration ----------
+      - name: Build & push migration
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.migration
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.IMAGE_NAMESPACE != '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---------- Mock Chain ----------
+      - name: Build & push mock-chain
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.mock-chain
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.IMAGE_NAMESPACE != '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---------- Cosign sign（keyless via OIDC）----------
+      - name: Sign gateway image
+        if: env.IMAGE_NAMESPACE != '' && github.event_name == 'push'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes ${{ env.IMAGE_NAMESPACE }}/gateway@${{ steps.meta.outputs.digest }}
+
+      - name: Sign cli image
+        if: env.IMAGE_NAMESPACE != '' && github.event_name == 'push'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes ${{ env.IMAGE_NAMESPACE }}/cli@${{ steps.meta.outputs.digest }}
+
+      - name: Sign migration image
+        if: env.IMAGE_NAMESPACE != '' && github.event_name == 'push'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes ${{ env.IMAGE_NAMESPACE }}/migration@${{ steps.meta.outputs.digest }}
+
+      - name: Sign mock-chain image
+        if: env.IMAGE_NAMESPACE != '' && github.event_name == 'push'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes ${{ env.IMAGE_NAMESPACE }}/mock-chain@${{ steps.meta.outputs.digest }}

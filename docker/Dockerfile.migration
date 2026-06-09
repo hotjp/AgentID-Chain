@@ -1,0 +1,62 @@
+# =============================================================================
+# AgentID-Chain Migration Dockerfile (v2.0.1)
+# =============================================================================
+# 数据库迁移工具（一次性的 InitContainer / Job）
+#
+# 用法：
+#   docker build -f docker/Dockerfile.migration -t agentid-chain/migration:dev .
+#   docker run --rm \
+#     -e AGENTID_STORAGE_DB_DSN=postgres://... \
+#     agentid-chain/migration:dev up
+#   docker run --rm \
+#     -e AGENTID_STORAGE_DB_DSN=postgres://... \
+#     agentid-chain/migration:dev down 1
+# =============================================================================
+
+FROM golang:1.23-alpine AS builder
+
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build \
+      -trimpath \
+      -ldflags="-s -w \
+        -X 'main.Version=${VERSION}' \
+        -X 'main.Commit=${COMMIT}' \
+        -X 'main.BuildDate=${BUILD_DATE}'" \
+      -o /out/agentid \
+      ./cmd/agentid
+
+RUN /out/agentid version
+
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="agentid-chain-migration" \
+      org.opencontainers.image.description="AgentID-Chain Database Migration Tool" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/agentid-chain/agentid-chain" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+COPY --from=builder /out/agentid /usr/local/bin/agentid
+
+USER nonroot:nonroot
+
+WORKDIR /etc/agentid
+
+# 默认迁移命令（up = 应用所有未执行的迁移）
+# 可被覆盖：docker run ... agentid-chain/migration:dev down 1
+ENTRYPOINT ["/usr/local/bin/agentid"]
+CMD ["migrate", "up"]

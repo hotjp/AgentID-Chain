@@ -62,7 +62,10 @@ services:
       start_period: 5s
 
   gateway:
-    image: alpine:3.19
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.gateway
+    image: agentid-chain/gateway:dev
     container_name: local-gateway
     networks:
       - agentid_net
@@ -72,19 +75,24 @@ services:
       redis:
         condition: service_healthy
     environment:
-      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
-      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_SERVICE_NAME: "agentid-chain-gateway"
+      AGENTID_SERVICE_ROLE: "gateway"
+      AGENTID_STORAGE_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_STORAGE_REDIS_ADDR: "redis:6379"
       AGENTID_BACKEND_TYPE: "local"     # 强制 local
     ports:
       - "8080:8080"
       - "9090:9090"
       - "6060:6060"
-    command: ["sh", "-c", "echo 'gateway placeholder — P5 will replace this image' && sleep infinity"]
+    command: ["serve", "--config", "/etc/agentid/configs/backend.local.yaml"]
+    volumes:
+      - ../../configs:/etc/agentid/configs:ro
     healthcheck:
-      test: ["CMD-SHELL", "true"]
+      test: ["CMD", "/usr/local/bin/agentid", "version"]
       interval: 30s
       timeout: 3s
       retries: 3
+      start_period: 5s
 
   auth-center:
     image: alpine:3.19
@@ -138,7 +146,10 @@ services:
 
   # CLI 默认随 gateway 启动（无 profile 限制）
   cli:
-    image: alpine:3.19
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.cli
+    image: agentid-chain/cli:dev
     container_name: local-cli
     networks:
       - agentid_net
@@ -146,10 +157,12 @@ services:
       gateway:
         condition: service_started
     environment:
-      AGENTID_ENDPOINT: "http://gateway:8080"
-      AGENTID_API_KEY: "${AGENTID_API_KEY:-devkey}"
-      AGENTID_BACKEND_TYPE: "local"
-    command: ["sh", "-c", "echo 'cli placeholder — P5 will replace this image' && sleep infinity"]
+      AGENTID_CLI_ENDPOINT: "http://gateway:8080"
+      AGENTID_CLI_MODE: "remote"
+    volumes:
+      - cli-data:/home/nonroot/.agentid
+    entrypoint: ["/usr/local/bin/agentid"]
+    command: ["version"]
     restart: "no"
 
 volumes:
@@ -158,4 +171,7 @@ volumes:
     driver: local
   redis_data:
     name: agentid_redis_data_local
+    driver: local
+  cli-data:
+    name: agentid_cli_data_local
     driver: local

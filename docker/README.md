@@ -224,3 +224,107 @@ make clean-all    # 等价于: docker compose ... down -v + make clean
 - **P3.8** 完成后，`mock-chain` 镜像将替换为 `agentid-chain/mock-chain:v2.0.1`（实现 EVM JSON-RPC 子集）
 - **P5** 完成后，`gateway / auth-center / tag-sense` 镜像将替换为真实业务镜像
 - **P8** 完成后，将新增 CI 推送镜像到 Docker Hub 的工作流
+
+---
+
+## 🐳 镜像清单（P14 已完成）
+
+| 镜像 | Dockerfile | 用途 | 暴露端口 |
+|------|-----------|------|----------|
+| `agentid-chain/gateway:<tag>` | `docker/Dockerfile.gateway` | 主网关服务 | 8080 / 9090 / 6060 |
+| `agentid-chain/cli:<tag>` | `docker/Dockerfile.cli` | CLI 客户端 | — |
+| `agentid-chain/migration:<tag>` | `docker/Dockerfile.migration` | DB 迁移工具（Job） | — |
+| `agentid-chain/mock-chain:<tag>` | `docker/Dockerfile.mock-chain` | 模拟链节点 | 8545 / 8546 |
+
+### 镜像 Tag 策略
+
+每个镜像发布时携带三个 tag：
+
+```bash
+# 完整语义版本
+agentid-chain/gateway:v2.0.1
+
+# 浮动 latest（默认分支）
+agentid-chain/gateway:latest
+
+# 短 SHA 追溯
+agentid-chain/gateway:sha-abc1234
+```
+
+### 单镜像使用示例
+
+```bash
+# 拉取
+docker pull agentid-chain/gateway:v2.0.1
+
+# 启动 gateway（连本地 PG/Redis）
+docker run --rm \
+  -p 8080:8080 -p 9090:9090 -p 6060:6060 \
+  -e AGENTID_STORAGE_DB_DSN="postgres://user:pass@host.docker.internal:5432/agentid?sslmode=disable" \
+  -e AGENTID_STORAGE_REDIS_ADDR="host.docker.internal:6379" \
+  -e AGENTID_BACKEND_TYPE=local \
+  -v $PWD/configs:/etc/agentid/configs:ro \
+  agentid-chain/gateway:v2.0.1
+
+# 一次性 register
+docker run --rm \
+  agentid-chain/cli:v2.0.1 \
+  register --owner alice --public-key pk_xxx
+
+# 跑数据库迁移（CI/CD InitContainer）
+docker run --rm \
+  -e AGENTID_STORAGE_DB_DSN="postgres://..." \
+  agentid-chain/migration:v2.0.1 up
+```
+
+### 构建与推送
+
+```bash
+# 本地构建（单架构）
+make docker-build
+
+# 多架构构建 + 推送（amd64 + arm64）
+make docker-buildx
+
+# 推送镜像到仓库
+make docker-push
+
+# 用 cosign 签名（防供应链攻击）
+make cosign-keygen    # 仅首次
+make cosign-sign      # 签名所有镜像
+make cosign-verify    # 验证签名
+
+# 清理
+make docker-clean
+```
+
+### 故障排查
+
+| 问题 | 排查方向 |
+|------|----------|
+| 容器启动后立即退出 | `docker logs <container>`；检查 `AGENTID_STORAGE_DB_DSN` / `AGENTID_STORAGE_REDIS_ADDR` |
+| 健康检查一直不通过 | distroless 镜像无 shell，`docker exec` 不可用；用 `docker inspect` + `docker logs` 排查 |
+| 镜像体积过大 | 确认使用 distroless；`docker history <image>` 查看各层 |
+| 多架构 push 失败 | 确认 `docker buildx create` 已创建；`make docker-buildx-inspect` |
+| 签名验证失败 | `COSIGN_PASSWORD` 不一致；密钥文件未同步；使用 keyless（OIDC）需 `$ACTIONS_ID_TOKEN` |
+
+### 安全
+
+- **基础镜像**：`gcr.io/distroless/static-debian12:nonroot`（无 shell，无包管理器，无 libc）
+- **运行用户**：UID 65532 (`nonroot`)，禁止 root 运行
+- **CGO**：关闭（避免 glibc 依赖）
+- **LDFLAGS**：`-s -w`（去除调试符号与 DWARF）
+- **多架构**：linux/amd64 + linux/arm64
+- **签名**：cosign keyless（GitHub OIDC）或本地密钥对
+- **SBOM**：建议在 CI 中加入 `anchore/sbom-action` 生成 CycloneDX SBOM
+
+### 镜像大小对比
+
+| 镜像 | 基础 | 预期大小 |
+|------|------|----------|
+| `agentid-chain/gateway` | distroless | ~25-30 MB |
+| `agentid-chain/cli` | distroless | ~25-30 MB |
+| `agentid-chain/migration` | distroless | ~25-30 MB |
+| `agentid-chain/mock-chain` | distroless | ~12-15 MB |
+
+> 远低于业界常见的 80-150 MB 镜像，节省拉取时间与存储成本。

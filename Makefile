@@ -19,9 +19,18 @@ COVERAGE_HTML  := coverage.html
 COVERAGE_MIN   := 70
 
 # ---------- Docker 变量 ------------------------------------------------------
-DOCKER_IMAGE   := agentid-chain
-DOCKER_TAG     := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-COMPOSE_FILE   := docker-compose.dev.yml
+DOCKER_REGISTRY := agentid-chain
+DOCKER_IMAGE    := agentid-chain
+DOCKER_TAG      := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+DOCKER_SHA      := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+DOCKER_COMMIT   := $(DOCKER_SHA)
+DOCKER_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+COMPOSE_FILE    := docker-compose.dev.yml
+# 镜像命名：{registry}/{name}:{tag}
+DOCKER_GATEWAY     := $(DOCKER_REGISTRY)/gateway
+DOCKER_CLI         := $(DOCKER_REGISTRY)/cli
+DOCKER_MIGRATION   := $(DOCKER_REGISTRY)/migration
+DOCKER_MOCK_CHAIN  := $(DOCKER_REGISTRY)/mock-chain
 
 # ---------- Go 工具 ---------------------------------------------------------
 GO             := go
@@ -127,9 +136,77 @@ check: fmt vet lint test ## fmt + vet + lint + test 一键检查
 ## Docker
 # =============================================================================
 
+# 公共 build args
+DOCKER_BUILD_ARGS := \
+	--build-arg VERSION=$(DOCKER_TAG) \
+	--build-arg COMMIT=$(DOCKER_COMMIT) \
+	--build-arg BUILD_DATE=$(DOCKER_BUILD_DATE)
+
 .PHONY: docker-build
-docker-build: ## 构建 Docker 镜像
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -t $(DOCKER_IMAGE):latest .
+docker-build: docker-build-gateway docker-build-cli docker-build-migration docker-build-mock-chain ## 构建所有 Docker 镜像（gateway/cli/migration/mock-chain）
+
+.PHONY: docker-build-gateway
+docker-build-gateway: ## 构建 gateway 镜像
+	docker build $(DOCKER_BUILD_ARGS) \
+		-f docker/Dockerfile.gateway \
+		-t $(DOCKER_GATEWAY):$(DOCKER_TAG) \
+		-t $(DOCKER_GATEWAY):latest \
+		-t $(DOCKER_GATEWAY):sha-$(DOCKER_SHA) \
+		.
+
+.PHONY: docker-build-cli
+docker-build-cli: ## 构建 cli 镜像
+	docker build $(DOCKER_BUILD_ARGS) \
+		-f docker/Dockerfile.cli \
+		-t $(DOCKER_CLI):$(DOCKER_TAG) \
+		-t $(DOCKER_CLI):latest \
+		-t $(DOCKER_CLI):sha-$(DOCKER_SHA) \
+		.
+
+.PHONY: docker-build-migration
+docker-build-migration: ## 构建 migration 镜像
+	docker build $(DOCKER_BUILD_ARGS) \
+		-f docker/Dockerfile.migration \
+		-t $(DOCKER_MIGRATION):$(DOCKER_TAG) \
+		-t $(DOCKER_MIGRATION):latest \
+		-t $(DOCKER_MIGRATION):sha-$(DOCKER_SHA) \
+		.
+
+.PHONY: docker-build-mock-chain
+docker-build-mock-chain: ## 构建 mock-chain 镜像
+	docker build $(DOCKER_BUILD_ARGS) \
+		-f docker/Dockerfile.mock-chain \
+		-t $(DOCKER_MOCK_CHAIN):$(DOCKER_TAG) \
+		-t $(DOCKER_MOCK_CHAIN):latest \
+		-t $(DOCKER_MOCK_CHAIN):sha-$(DOCKER_SHA) \
+		.
+
+.PHONY: docker-push
+docker-push: docker-push-gateway docker-push-cli docker-push-migration docker-push-mock-chain ## 推送所有镜像到仓库
+
+.PHONY: docker-push-gateway
+docker-push-gateway: ## 推送 gateway 镜像
+	docker push $(DOCKER_GATEWAY):$(DOCKER_TAG)
+	docker push $(DOCKER_GATEWAY):latest
+	docker push $(DOCKER_GATEWAY):sha-$(DOCKER_SHA)
+
+.PHONY: docker-push-cli
+docker-push-cli: ## 推送 cli 镜像
+	docker push $(DOCKER_CLI):$(DOCKER_TAG)
+	docker push $(DOCKER_CLI):latest
+	docker push $(DOCKER_CLI):sha-$(DOCKER_SHA)
+
+.PHONY: docker-push-migration
+docker-push-migration: ## 推送 migration 镜像
+	docker push $(DOCKER_MIGRATION):$(DOCKER_TAG)
+	docker push $(DOCKER_MIGRATION):latest
+	docker push $(DOCKER_MIGRATION):sha-$(DOCKER_SHA)
+
+.PHONY: docker-push-mock-chain
+docker-push-mock-chain: ## 推送 mock-chain 镜像
+	docker push $(DOCKER_MOCK_CHAIN):$(DOCKER_TAG)
+	docker push $(DOCKER_MOCK_CHAIN):latest
+	docker push $(DOCKER_MOCK_CHAIN):sha-$(DOCKER_SHA)
 
 .PHONY: docker-up
 docker-up: ## 起 docker compose 全栈
@@ -138,6 +215,14 @@ docker-up: ## 起 docker compose 全栈
 .PHONY: docker-up-infra
 docker-up-infra: ## 只起基础设施（postgres + redis）
 	docker-compose -f $(COMPOSE_FILE) up -d postgres redis
+
+.PHONY: docker-up-local
+docker-up-local: ## 起 local-only compose（无端口暴露）
+	docker-compose -f docker/compose/docker-compose.local.yml up -d
+
+.PHONY: docker-up-hybrid
+docker-up-hybrid: ## 起 hybrid compose（+ mock-chain）
+	docker-compose -f docker/compose/docker-compose.hybrid.yml up -d
 
 .PHONY: docker-down
 docker-down: ## 停 docker compose 全栈
@@ -150,6 +235,111 @@ docker-down-v: ## 停并清数据卷（谨慎）
 .PHONY: docker-logs
 docker-logs: ## 跟随业务日志
 	docker-compose -f $(COMPOSE_FILE) logs -f api-gateway auth-center tag-sense
+
+.PHONY: docker-clean
+docker-clean: ## 清理 dangling 镜像与未使用卷
+	docker image prune -f
+	docker volume prune -f
+
+# =============================================================================
+## Docker Buildx（多架构构建）
+# =============================================================================
+
+BUILDX_BUILDER ?= agentid-builder
+PLATFORMS      ?= linux/amd64,linux/arm64
+
+.PHONY: docker-buildx-create
+docker-buildx-create: ## 创建 buildx builder（多架构）
+	docker buildx create --name $(BUILDX_BUILDER) --driver docker-container --bootstrap || true
+	docker buildx use $(BUILDX_BUILDER)
+
+.PHONY: docker-buildx
+docker-buildx: docker-buildx-create ## 多架构构建并推送（amd64 + arm64）
+	docker buildx build --platform $(PLATFORMS) \
+		$(DOCKER_BUILD_ARGS) \
+		--push \
+		-f docker/Dockerfile.gateway \
+		-t $(DOCKER_GATEWAY):$(DOCKER_TAG) \
+		-t $(DOCKER_GATEWAY):latest \
+		.
+	docker buildx build --platform $(PLATFORMS) \
+		$(DOCKER_BUILD_ARGS) \
+		--push \
+		-f docker/Dockerfile.cli \
+		-t $(DOCKER_CLI):$(DOCKER_TAG) \
+		-t $(DOCKER_CLI):latest \
+		.
+	docker buildx build --platform $(PLATFORMS) \
+		$(DOCKER_BUILD_ARGS) \
+		--push \
+		-f docker/Dockerfile.migration \
+		-t $(DOCKER_MIGRATION):$(DOCKER_TAG) \
+		-t $(DOCKER_MIGRATION):latest \
+		.
+	docker buildx build --platform $(PLATFORMS) \
+		$(DOCKER_BUILD_ARGS) \
+		--push \
+		-f docker/Dockerfile.mock-chain \
+		-t $(DOCKER_MOCK_CHAIN):$(DOCKER_TAG) \
+		-t $(DOCKER_MOCK_CHAIN):latest \
+		.
+
+.PHONY: docker-buildx-load
+docker-buildx-load: docker-buildx-create ## 多架构构建并 load 到本地（仅 amd64）
+	docker buildx build --platform linux/amd64 \
+		$(DOCKER_BUILD_ARGS) \
+		--load \
+		-f docker/Dockerfile.gateway \
+		-t $(DOCKER_GATEWAY):$(DOCKER_TAG) \
+		.
+
+.PHONY: docker-buildx-inspect
+docker-buildx-inspect: ## 查看当前 buildx 状态
+	docker buildx ls
+	docker buildx inspect $(BUILDX_BUILDER)
+
+# =============================================================================
+## 镜像签名（cosign）
+# =============================================================================
+
+COSIGN_KEY ?= cosign.key
+COSIGN_PUB ?= cosign.pub
+COSIGN_PASSWORD ?= $(shell command -v cosign >/dev/null && cosign generate-key-pair 2>/dev/null || echo "")
+
+.PHONY: cosign-keygen
+cosign-keygen: ## 生成 cosign 签名密钥对（仅首次）
+	@if [ ! -f $(COSIGN_KEY) ]; then \
+		echo "==> 生成 cosign 密钥对..."; \
+		COSIGN_PASSWORD="" cosign generate-key-pair; \
+	else \
+		echo "==> 密钥对已存在：$(COSIGN_KEY) / $(COSIGN_PUB)"; \
+	fi
+
+.PHONY: cosign-sign
+cosign-sign: cosign-keygen ## 用 cosign 签名所有镜像
+	@echo "==> Signing gateway:$(DOCKER_TAG)"
+	COSIGN_PASSWORD="" cosign sign --key $(COSIGN_KEY) $(DOCKER_GATEWAY):$(DOCKER_TAG)
+	@echo "==> Signing cli:$(DOCKER_TAG)"
+	COSIGN_PASSWORD="" cosign sign --key $(COSIGN_KEY) $(DOCKER_CLI):$(DOCKER_TAG)
+	@echo "==> Signing migration:$(DOCKER_TAG)"
+	COSIGN_PASSWORD="" cosign sign --key $(COSIGN_KEY) $(DOCKER_MIGRATION):$(DOCKER_TAG)
+	@echo "==> Signing mock-chain:$(DOCKER_TAG)"
+	COSIGN_PASSWORD="" cosign sign --key $(COSIGN_KEY) $(DOCKER_MOCK_CHAIN):$(DOCKER_TAG)
+
+.PHONY: cosign-verify
+cosign-verify: ## 验证 gateway 镜像签名
+	cosign verify --key $(COSIGN_PUB) $(DOCKER_GATEWAY):$(DOCKER_TAG)
+
+.PHONY: cosign-verify-all
+cosign-verify-all: ## 验证所有镜像签名
+	@echo "==> Verifying gateway"
+	cosign verify --key $(COSIGN_PUB) $(DOCKER_GATEWAY):$(DOCKER_TAG)
+	@echo "==> Verifying cli"
+	cosign verify --key $(COSIGN_PUB) $(DOCKER_CLI):$(DOCKER_TAG)
+	@echo "==> Verifying migration"
+	cosign verify --key $(COSIGN_PUB) $(DOCKER_MIGRATION):$(DOCKER_TAG)
+	@echo "==> Verifying mock-chain"
+	cosign verify --key $(COSIGN_PUB) $(DOCKER_MOCK_CHAIN):$(DOCKER_TAG)
 
 # =============================================================================
 ## 数据库 / 迁移

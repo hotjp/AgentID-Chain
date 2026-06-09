@@ -112,11 +112,17 @@ services:
       retries: 10
       start_period: 15s
 
-  # P5 阶段会替换 image 为 agentid-chain/gateway:v2.0.1 并启用
-  # 当前保留为占位以维持 port 收敛可见性
+  # P14: 使用真实 gateway 镜像（docker/Dockerfile.gateway）
   gateway:
-    image: alpine:3.19
-    container_name: dev-gateway-placeholder
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.gateway
+      args:
+        VERSION: "dev"
+        COMMIT: "local"
+        BUILD_DATE: "dev"
+    image: agentid-chain/gateway:dev
+    container_name: dev-gateway
     profiles: ["with-gateway"]   # 默认不启动；`--profile with-gateway` 启用
     networks:
       - agentid_net
@@ -128,21 +134,27 @@ services:
       mock-chain:
         condition: service_healthy
     environment:
-      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
-      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_SERVICE_NAME: "agentid-chain-gateway"
+      AGENTID_SERVICE_ROLE: "gateway"
+      AGENTID_STORAGE_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_STORAGE_REDIS_ADDR: "redis:6379"
       AGENTID_BACKEND_TYPE: "local"
       AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
       AGENTID_CHAIN_DRIVER: "mock"
+      AGENTID_LOG_LEVEL: "debug"
     ports:
       - "8080:8080"  # HTTP / gRPC
       - "9090:9090"  # Prometheus metrics
       - "6060:6060"  # pprof
-    command: ["sh", "-c", "echo 'gateway placeholder — P5 will replace this image' && sleep infinity"]
+    command: ["serve", "--config", "/etc/agentid/configs/backend.local.yaml"]
+    volumes:
+      - ../../configs:/etc/agentid/configs:ro
     healthcheck:
-      test: ["CMD-SHELL", "true"]
+      test: ["CMD", "/usr/local/bin/agentid", "version"]
       interval: 30s
       timeout: 3s
       retries: 3
+      start_period: 5s
 
   # P5 阶段会替换 image 为 agentid-chain/auth-center:v2.0.1 并启用
   auth-center:
@@ -195,6 +207,43 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+
+  # P14: CLI 工具（一次性任务，可选 profile 启用）
+  cli:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.cli
+    image: agentid-chain/cli:dev
+    container_name: dev-cli
+    profiles: ["with-cli"]
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AGENTID_SERVICE_NAME: "agentid-chain-cli"
+      AGENTID_STORAGE_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+    entrypoint: ["/usr/local/bin/agentid"]
+    command: ["version"]
+
+  # P14: 数据库迁移（InitContainer 模式，可选 profile 启用）
+  migration:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.migration
+    image: agentid-chain/migration:dev
+    container_name: dev-migration
+    profiles: ["migration"]
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AGENTID_STORAGE_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+    command: ["migrate", "up"]
+    restart: "no"
 
 volumes:
   pg_data:

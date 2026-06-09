@@ -1,0 +1,55 @@
+# =============================================================================
+# AgentID-Chain Mock-Chain Dockerfile (v2.0.1)
+# =============================================================================
+# 模拟链节点（开发/测试用，无任何加密）
+# 监听 8545（JSON-RPC）+ 8546（WebSocket）
+#
+# 用法：
+#   docker build -f docker/Dockerfile.mock-chain -t agentid-chain/mock-chain:dev .
+#   docker run --rm -p 8545:8545 -p 8546:8546 agentid-chain/mock-chain:dev
+# =============================================================================
+
+FROM golang:1.23-alpine AS builder
+
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build \
+      -trimpath \
+      -ldflags="-s -w" \
+      -o /out/mock-chain \
+      ./cmd/mock-chain
+
+RUN /out/mock-chain --help 2>&1 || true
+
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="agentid-chain-mock-chain" \
+      org.opencontainers.image.description="AgentID-Chain Mock Chain - dev/test only, no real crypto" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/agentid-chain/agentid-chain" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.warning="MOCK - DO NOT USE IN PRODUCTION"
+
+COPY --from=builder /out/mock-chain /usr/local/bin/mock-chain
+
+USER nonroot:nonroot
+
+# JSON-RPC: 8545; WebSocket: 8546
+EXPOSE 8545 8546
+
+ENTRYPOINT ["/usr/local/bin/mock-chain"]
+CMD ["--addr", "0.0.0.0:8545"]

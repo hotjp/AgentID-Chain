@@ -1,0 +1,83 @@
+# =============================================================================
+# AgentID-Chain Gateway Dockerfile (v2.0.1)
+# =============================================================================
+# 多阶段构建：
+#   1. builder    - Go 1.23 + 完整工具链
+#   2. distroless - gcr.io/distroless/static-debian12 (no shell, ~20MB)
+#   3. nonroot    - UID 65532
+#
+# 用法：
+#   docker build -f docker/Dockerfile.gateway -t agentid-chain/gateway:dev .
+#   docker run --rm -p 8080:8080 -p 9090:9090 -p 6060:6060 \
+#     -v $PWD/configs:/etc/agentid/configs:ro \
+#     agentid-chain/gateway:dev --config /etc/agentid/configs/app.yaml
+# =============================================================================
+
+# -------- 阶段 1: builder ---------------------------------------------------
+FROM golang:1.23-alpine AS builder
+
+# 工具：git（go mod 私有仓库需要）
+RUN apk add --no-cache git ca-certificates tzdata
+
+# 构建参数
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
+
+WORKDIR /src
+
+# 先复制 go.mod / go.sum（利用 Docker 缓存）
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 再复制源码
+COPY . .
+
+# 构建 gateway（agentid serve 子命令）
+# CGO 关闭（distroless 不含 glibc）
+# -trimpath 去掉本地路径
+# -ldflags 注入版本信息
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build \
+      -trimpath \
+      -ldflags="-s -w \
+        -X 'main.Version=${VERSION}' \
+        -X 'main.Commit=${COMMIT}' \
+        -X 'main.BuildDate=${BUILD_DATE}'" \
+      -o /out/agentid \
+      ./cmd/agentid
+
+# 验证构建产物
+RUN /out/agentid version
+
+# -------- 阶段 2: runtime (distroless) --------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+
+# 标签（OCI image spec）
+LABEL org.opencontainers.image.title="agentid-chain-gateway" \
+      org.opencontainers.image.description="AgentID-Chain Gateway - AI Agent identity & permission service" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/agentid-chain/agentid-chain" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# 从 builder 复制二进制
+COPY --from=builder /out/agentid /usr/local/bin/agentid
+
+# 默认端口（业务 / metrics / pprof）
+EXPOSE 8080 9090 6060
+
+# 工作目录
+WORKDIR /etc/agentid
+
+# 以 nonroot 运行（distroless:nonroot 已经是 UID 65532）
+USER nonroot:nonroot
+
+# 入口：默认起 gateway（可被覆盖）
+ENTRYPOINT ["/usr/local/bin/agentid"]
+CMD ["serve", "--config", "/etc/agentid/configs/app.yaml"]
+
+# 健康检查（distroless 无 shell，使用 binary 自检）
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+#   CMD ["/usr/local/bin/agentid", "health"]

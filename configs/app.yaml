@@ -37,18 +37,29 @@ storage:
   db:
     driver: postgres
     dsn: postgres://devuser:devpass@localhost:5432/apigateway?sslmode=disable
-    max_open: 25
-    max_idle: 5
-    max_lifetime: 30m
-    conn_timeout: 5s
-    query_timeout: 10s
+    # 连接池 (P18.11: 基于压测调参)
+    max_open: 25               # 最多 25 个连接（防 DB 端资源耗尽）
+    max_idle: 10               # 最多 10 个空闲连接（减少握手）
+    max_lifetime: 5m           # 连接最大寿命 5 分钟（防 stale）
+    max_idle_time: 2m          # 空闲连接最大存活 2 分钟
+    conn_timeout: 5s           # 建立连接超时
+    query_timeout: 10s         # 单次查询超时
+    # 监控
+    enable_metrics: true       # 暴露 pgxpool 指标
+    health_check_period: 30s   # 后台健康检查周期
   redis:
     addr: localhost:6379
     password: ""
     db: 0
     timeout: 3s
-    pool_size: 20
-    min_idle_conns: 5
+    # 连接池 (P18.11)
+    pool_size: 20              # 最多 20 个连接
+    min_idle_conns: 10         # 至少 10 个空闲连接（预热）
+    max_idle_conns: 15         # 最多 15 个空闲连接
+    conn_max_idle_time: 5m     # 空闲连接最大存活
+    pool_timeout: 3s           # 获取连接等待超时
+    read_timeout: 2s
+    write_timeout: 2s
   outbox:
     enabled: true
     stream_key: agentid:outbox

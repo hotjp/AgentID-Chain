@@ -1,0 +1,177 @@
+# =============================================================================
+# AgentID-Chain — Hybrid Compose (P1.9)
+# =============================================================================
+# 混合模式: 身份走 mock-chain，权限/审计走 PostgreSQL + Redis
+# 与 local 的差异：
+#   - 新增 mock-chain service（alpine:3.19 占位）
+#   - gateway / auth-center 注入链上相关环境变量
+#   - gateway depends_on: mock-chain (healthy)
+#   - 启动顺序: postgres+redis -> mock-chain -> gateway
+#
+# 用法：
+#   docker compose -f docker/compose/docker-compose.hybrid.yml up -d
+# =============================================================================
+
+networks:
+  agentid_net:
+    name: agentid_net_hybrid
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hybrid-postgres
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: agentid
+      POSTGRES_PASSWORD: agentid_dev
+      POSTGRES_DB: agentid
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../../scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentid -d agentid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: hybrid-redis
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  mock-chain:
+    image: alpine:3.19
+    container_name: hybrid-mock-chain
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
+      AGENTID_CHAIN_DRIVER: "mock"
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache python3 >/dev/null 2>&1
+        exec python3 -u -c "
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/healthz':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'ok')
+                else:
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0x0\"}')
+            def log_message(self, *a, **k): pass
+        HTTPServer(('0.0.0.0', 8545), H).serve_forever()
+        "
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8545/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  gateway:
+    image: alpine:3.19
+    container_name: hybrid-gateway
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-chain:
+        condition: service_healthy    # 关键: mock-chain healthy 后才能起
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "hybrid"
+      AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
+      AGENTID_CHAIN_DRIVER: "mock"
+      AGENTID_PRIVATE_KEY: "${AGENTID_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}"
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+      - "6060:6060"
+    command: ["sh", "-c", "echo 'gateway hybrid placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  auth-center:
+    image: alpine:3.19
+    container_name: hybrid-auth-center
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-chain:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/authcenter?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "hybrid"
+      AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
+    ports:
+      - "8081:8081"
+      - "9091:9091"
+      - "6061:6061"
+    command: ["sh", "-c", "echo 'auth-center placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  cli:
+    image: alpine:3.19
+    container_name: hybrid-cli
+    networks:
+      - agentid_net
+    depends_on:
+      gateway:
+        condition: service_started
+    environment:
+      AGENTID_ENDPOINT: "http://gateway:8080"
+      AGENTID_API_KEY: "${AGENTID_API_KEY:-devkey}"
+      AGENTID_BACKEND_TYPE: "hybrid"
+    command: ["sh", "-c", "echo 'cli placeholder' && sleep infinity"]
+    restart: "no"
+
+volumes:
+  pg_data:
+    name: agentid_pg_data_hybrid
+    driver: local
+  redis_data:
+    name: agentid_redis_data_hybrid
+    driver: local

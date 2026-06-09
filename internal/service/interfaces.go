@@ -193,3 +193,39 @@ type KeyProvider interface {
 	// Rotate 轮换指定 key（返回新 key id）。
 	Rotate(ctx context.Context, keyType string) (string, error)
 }
+
+// =============================================================================
+// 身份后端接口（实现位于 internal/core/backend/）
+// =============================================================================
+
+// IdentityProvider 身份后端（local PG / onchain / hybrid）的统一查询接口。
+//
+// 业务用法：
+//   - L4 工作流在事务内写完后，调用 Provider 来 reconcile / 验证
+//   - L5 网关查询用 Provider.Load(uuid) 拿到完整 Agent 视图
+//   - 反向索引：按 owner DID 查所有 agent
+//
+// 与 L1 Repository 的区别：
+//   - L1 Repository = 原始 CRUD（直接对 ent.PG / mock store）
+//   - IdentityProvider = 多 backend 统一抽象（PG 优先 / onchain 兜底 / hybrid 合并）
+//
+// 实现位于 internal/core/backend/（P8 批次）。
+type IdentityProvider interface {
+	// BackendName 返回后端名（"local" / "onchain" / "hybrid"）。
+	BackendName() string
+
+	// Load 加载 Agent（按 UUID）。
+	Load(ctx context.Context, uuid domain.UUID) (*domain.Agent, error)
+
+	// LoadByOwner 加载 owner 名下所有 agent（按 owner DID）。
+	LoadByOwner(ctx context.Context, ownerDID string) ([]*domain.Agent, error)
+
+	// LoadByPubKey 加载 agent（按公钥，用于反查 challenge response）。
+	LoadByPubKey(ctx context.Context, pub ed25519.PublicKey) (*domain.Agent, error)
+
+	// Exists 检查 agent 是否存在（轻量级，比 Load 省一次序列化）。
+	Exists(ctx context.Context, uuid domain.UUID) (bool, error)
+
+	// HealthCheck 健康检查。
+	HealthCheck(ctx context.Context) error
+}

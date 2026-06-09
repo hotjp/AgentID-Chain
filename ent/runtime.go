@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"github.com/agentid-chain/agentid-chain/ent/agent"
 	"github.com/agentid-chain/agentid-chain/ent/schema"
 	"github.com/agentid-chain/agentid-chain/ent/user"
 	"github.com/google/uuid"
@@ -14,6 +15,56 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	agentFields := schema.Agent{}.Fields()
+	_ = agentFields
+	// agentDescOwnerDid is the schema descriptor for owner_did field.
+	agentDescOwnerDid := agentFields[1].Descriptor()
+	// agent.OwnerDidValidator is a validator for the "owner_did" field. It is called by the builders before save.
+	agent.OwnerDidValidator = func() func(string) error {
+		validators := agentDescOwnerDid.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(owner_did string) error {
+			for _, fn := range fns {
+				if err := fn(owner_did); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// agentDescLevel is the schema descriptor for level field.
+	agentDescLevel := agentFields[2].Descriptor()
+	// agent.DefaultLevel holds the default value on creation for the level field.
+	agent.DefaultLevel = agentDescLevel.Default.(uint8)
+	// agent.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	agent.LevelValidator = agentDescLevel.Validators[0].(func(uint8) error)
+	// agentDescPermission is the schema descriptor for permission field.
+	agentDescPermission := agentFields[3].Descriptor()
+	// agent.DefaultPermission holds the default value on creation for the permission field.
+	agent.DefaultPermission = agentDescPermission.Default.(uint64)
+	// agentDescStatus is the schema descriptor for status field.
+	agentDescStatus := agentFields[4].Descriptor()
+	// agent.DefaultStatus holds the default value on creation for the status field.
+	agent.DefaultStatus = agentDescStatus.Default.(uint8)
+	// agent.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	agent.StatusValidator = agentDescStatus.Validators[0].(func(uint8) error)
+	// agentDescCreatedAt is the schema descriptor for created_at field.
+	agentDescCreatedAt := agentFields[5].Descriptor()
+	// agent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	agent.DefaultCreatedAt = agentDescCreatedAt.Default.(func() time.Time)
+	// agentDescUpdatedAt is the schema descriptor for updated_at field.
+	agentDescUpdatedAt := agentFields[6].Descriptor()
+	// agent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	agent.DefaultUpdatedAt = agentDescUpdatedAt.Default.(func() time.Time)
+	// agent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	agent.UpdateDefaultUpdatedAt = agentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// agentDescID is the schema descriptor for id field.
+	agentDescID := agentFields[0].Descriptor()
+	// agent.DefaultID holds the default value on creation for the id field.
+	agent.DefaultID = agentDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescEmail is the schema descriptor for email field.

@@ -8,6 +8,34 @@ import (
 )
 
 var (
+	// AgentsColumns holds the columns for the "agents" table.
+	AgentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, Unique: true},
+		{Name: "owner_did", Type: field.TypeString, Size: 256},
+		{Name: "level", Type: field.TypeUint8, Default: 0},
+		{Name: "permission", Type: field.TypeUint64, Default: 0},
+		{Name: "status", Type: field.TypeUint8, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AgentsTable holds the schema information for the "agents" table.
+	AgentsTable = &schema.Table{
+		Name:       "agents",
+		Columns:    AgentsColumns,
+		PrimaryKey: []*schema.Column{AgentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_agent_owner_did",
+				Unique:  false,
+				Columns: []*schema.Column{AgentsColumns[1]},
+			},
+			{
+				Name:    "idx_agent_status",
+				Unique:  false,
+				Columns: []*schema.Column{AgentsColumns[4]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -24,6 +52,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AgentsTable,
 		UsersTable,
 	}
 )

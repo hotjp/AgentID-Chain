@@ -1,0 +1,161 @@
+# =============================================================================
+# AgentID-Chain — Local-only Compose (P1.8)
+# =============================================================================
+# 与 dev 的差异：
+#   - 不暴露 PostgreSQL / Redis 端口到宿主机（仅容器内访问）
+#   - gateway / auth-center / tag-sense 强制 AGENTID_BACKEND_TYPE=local
+#   - cli 默认随 gateway 启动（无 profile 限制）
+#   - gateway / auth-center / tag-sense 不在 profile 后（始终运行）
+#   - 端口收敛: 8080/9090/6060 (gateway) / 8081/9091/6061 (auth) / 8082/9092/6062 (tag)
+#
+# 用法：
+#   docker compose -f docker/compose/docker-compose.local.yml up -d
+#   docker compose -f docker/compose/docker-compose.local.yml down
+# =============================================================================
+
+networks:
+  agentid_net:
+    name: agentid_net_local
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: local-postgres
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    # ❌ 不暴露端口到宿主机（容器内 :5432 仍可访问）
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: agentid
+      POSTGRES_PASSWORD: agentid_dev
+      POSTGRES_DB: agentid
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../../scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentid -d agentid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: local-redis
+    restart: unless-stopped
+    networks:
+      - agentid_net
+    # ❌ 不暴露端口
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  gateway:
+    image: alpine:3.19
+    container_name: local-gateway
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "local"     # 强制 local
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+      - "6060:6060"
+    command: ["sh", "-c", "echo 'gateway placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  auth-center:
+    image: alpine:3.19
+    container_name: local-auth-center
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/authcenter?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "local"
+    ports:
+      - "8081:8081"
+      - "9091:9091"
+      - "6061:6061"
+    command: ["sh", "-c", "echo 'auth-center placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  tag-sense:
+    image: alpine:3.19
+    container_name: local-tag-sense
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/tagsense?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "local"
+    ports:
+      - "8082:8082"
+      - "9092:9092"
+      - "6062:6062"
+    command: ["sh", "-c", "echo 'tag-sense placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # CLI 默认随 gateway 启动（无 profile 限制）
+  cli:
+    image: alpine:3.19
+    container_name: local-cli
+    networks:
+      - agentid_net
+    depends_on:
+      gateway:
+        condition: service_started
+    environment:
+      AGENTID_ENDPOINT: "http://gateway:8080"
+      AGENTID_API_KEY: "${AGENTID_API_KEY:-devkey}"
+      AGENTID_BACKEND_TYPE: "local"
+    command: ["sh", "-c", "echo 'cli placeholder — P5 will replace this image' && sleep infinity"]
+    restart: "no"
+
+volumes:
+  pg_data:
+    name: agentid_pg_data_local
+    driver: local
+  redis_data:
+    name: agentid_redis_data_local
+    driver: local

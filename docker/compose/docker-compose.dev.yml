@@ -1,14 +1,28 @@
 # =============================================================================
 # AgentID-Chain — Dev Compose (P1.1 PostgreSQL 16)
 # =============================================================================
-# 本文件在 P1 阶段逐步累积：
-#   P1.1            PostgreSQL 16
-#   P1.2            Redis 7
-#   P1.3            agentid_net 网络
-#   P1.4            命名卷
-#   P1.5            init-databases.sql 挂载
-#   P1.6 [本提交]   mock-chain 占位服务
-#   P1.7            完整 dev compose
+# AgentID-Chain — Dev Compose (v2.0.1)
+# =============================================================================
+# 包含：基础设施 (postgres/redis) + mock-chain + 网关 (gateway, P5 接入)
+#
+# 端口速查（与 CLAUDE.md 尾号规则一致）：
+#   5432  postgres
+#   6379  redis
+#   8545  mock-chain (P3.8 实现 EVM JSON-RPC 子集)
+#   8080  gateway http/grpc  (P5 接入)
+#   9090  gateway metrics    (P5 接入)
+#   6060  gateway pprof      (P5 接入)
+#   8081  auth-center        (P5 接入)
+#   9091  auth-center metrics
+#   6061  auth-center pprof
+#   8082  tag-sense          (P5 接入)
+#   9092  tag-sense metrics
+#   6062  tag-sense pprof
+#
+# 用法：
+#   docker compose -f docker/compose/docker-compose.dev.yml up -d
+#   docker compose -f docker/compose/docker-compose.dev.yml ps
+#   docker compose -f docker/compose/docker-compose.dev.yml down
 # =============================================================================
 
 networks:
@@ -92,11 +106,95 @@ services:
         HTTPServer(('0.0.0.0', 8545), H).serve_forever()
         "
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8545/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8545/healthz || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 15s
+
+  # P5 阶段会替换 image 为 agentid-chain/gateway:v2.0.1 并启用
+  # 当前保留为占位以维持 port 收敛可见性
+  gateway:
+    image: alpine:3.19
+    container_name: dev-gateway-placeholder
+    profiles: ["with-gateway"]   # 默认不启动；`--profile with-gateway` 启用
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-chain:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/agentid?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+      AGENTID_BACKEND_TYPE: "local"
+      AGENTID_CHAIN_RPC_URL: "http://mock-chain:8545"
+      AGENTID_CHAIN_DRIVER: "mock"
+    ports:
+      - "8080:8080"  # HTTP / gRPC
+      - "9090:9090"  # Prometheus metrics
+      - "6060:6060"  # pprof
+    command: ["sh", "-c", "echo 'gateway placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # P5 阶段会替换 image 为 agentid-chain/auth-center:v2.0.1 并启用
+  auth-center:
+    image: alpine:3.19
+    container_name: dev-auth-center-placeholder
+    profiles: ["with-gateway"]
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/authcenter?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+    ports:
+      - "8081:8081"
+      - "9091:9091"
+      - "6061:6061"
+    command: ["sh", "-c", "echo 'auth-center placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # P5 阶段会替换 image 为 agentid-chain/tag-sense:v2.0.1 并启用
+  tag-sense:
+    image: alpine:3.19
+    container_name: dev-tag-sense-placeholder
+    profiles: ["with-gateway"]
+    networks:
+      - agentid_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AGENTID_DB_DSN: "postgres://agentid:agentid_dev@postgres:5432/tagsense?sslmode=disable"
+      AGENTID_REDIS_ADDR: "redis:6379"
+    ports:
+      - "8082:8082"
+      - "9092:9092"
+      - "6062:6062"
+    command: ["sh", "-c", "echo 'tag-sense placeholder — P5 will replace this image' && sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "true"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
 volumes:
   pg_data:

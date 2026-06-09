@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 
 type mockStore struct {
 	storage.Client
+	mu           sync.Mutex
 	agents       map[string]*storage.AgentRecord
 	perms        map[string]uint64
 	putAgentErr  error
@@ -39,6 +41,8 @@ func (m *mockStore) Revocation() storage.RevocationStore { return m }
 func (m *mockStore) Cache() storage.CacheStore          { return m }
 
 func (m *mockStore) GetAgent(_ context.Context, uuid string) (*storage.AgentRecord, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	rec, ok := m.agents[uuid]
 	if !ok {
 		return nil, storage.ErrNotFound
@@ -47,12 +51,12 @@ func (m *mockStore) GetAgent(_ context.Context, uuid string) (*storage.AgentReco
 }
 
 func (m *mockStore) PutAgent(_ context.Context, rec *storage.AgentRecord) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.putAgentErr != nil {
 		return m.putAgentErr
 	}
-	if _, exists := m.agents[rec.UUID]; exists {
-		return storage.ErrConflict
-	}
+	// upsert: 覆盖（生产 PG 用 ON CONFLICT DO UPDATE；mock 直接覆盖）
 	m.agents[rec.UUID] = rec
 	return nil
 }
@@ -78,20 +82,28 @@ func (m *mockStore) BatchGetAgents(_ context.Context, uuids []string) (map[strin
 }
 
 func (m *mockStore) GetPermissions(_ context.Context, uuid string) (uint64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.perms[uuid], nil
 }
 
 func (m *mockStore) SetPermissions(_ context.Context, uuid string, bits uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.perms[uuid] = bits
 	return nil
 }
 
 func (m *mockStore) GrantPermission(_ context.Context, uuid string, bit uint) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.perms[uuid] |= 1 << bit
 	return nil
 }
 
 func (m *mockStore) RevokePermission(_ context.Context, uuid string, bit uint) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.perms[uuid] &^= 1 << bit
 	return nil
 }
@@ -145,25 +157,40 @@ func (m *mockChain) RegisterAgent(_ context.Context, _ *RegisterRequest) (*Regis
 	return m.receipt, nil
 }
 func (m *mockChain) UpdateLevel(context.Context, domain.UUID, domain.LevelType, string) (*RegisterReceipt, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return m.receipt, nil
 }
 func (m *mockChain) BanAgent(context.Context, domain.UUID, string) (*RegisterReceipt, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return m.receipt, nil
 }
 func (m *mockChain) UnbanAgent(context.Context, domain.UUID) (*RegisterReceipt, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return m.receipt, nil
 }
 func (m *mockChain) GetAgentState(context.Context, domain.UUID) (*ChainAgentState, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return &ChainAgentState{}, nil
 }
 func (m *mockChain) HealthCheck(context.Context) error { return nil }
 
 type mockAudit struct {
 	AuditNotifier
+	mu     sync.Mutex
 	events []*AuditEvent
 }
 
 func (m *mockAudit) Notify(_ context.Context, e *AuditEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.events = append(m.events, e)
 	return nil
 }

@@ -36,6 +36,29 @@ var (
 			},
 		},
 	}
+	// AuditLogsColumns holds the columns for the "audit_logs" table.
+	AuditLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "action", Type: field.TypeString, Size: 64},
+		{Name: "reason", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "operator_did", Type: field.TypeString, Size: 256},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "agent_audit_logs", Type: field.TypeUUID},
+	}
+	// AuditLogsTable holds the schema information for the "audit_logs" table.
+	AuditLogsTable = &schema.Table{
+		Name:       "audit_logs",
+		Columns:    AuditLogsColumns,
+		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "audit_logs_agents_audit_logs",
+				Columns:    []*schema.Column{AuditLogsColumns[5]},
+				RefColumns: []*schema.Column{AgentsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -53,9 +76,11 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AgentsTable,
+		AuditLogsTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	AuditLogsTable.ForeignKeys[0].RefTable = AgentsTable
 }

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/agentid-chain/agentid-chain/ent/agent"
+	"github.com/agentid-chain/agentid-chain/ent/auditlog"
 	"github.com/agentid-chain/agentid-chain/ent/predicate"
 	"github.com/agentid-chain/agentid-chain/ent/user"
 	"github.com/google/uuid"
@@ -26,29 +27,33 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAgent = "Agent"
-	TypeUser  = "User"
+	TypeAgent    = "Agent"
+	TypeAuditLog = "AuditLog"
+	TypeUser     = "User"
 )
 
 // AgentMutation represents an operation that mutates the Agent nodes in the graph.
 type AgentMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	owner_did     *string
-	level         *uint8
-	addlevel      *int8
-	permission    *uint64
-	addpermission *int64
-	status        *uint8
-	addstatus     *int8
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Agent, error)
-	predicates    []predicate.Agent
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	owner_did         *string
+	level             *uint8
+	addlevel          *int8
+	permission        *uint64
+	addpermission     *int64
+	status            *uint8
+	addstatus         *int8
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	audit_logs        map[uuid.UUID]struct{}
+	removedaudit_logs map[uuid.UUID]struct{}
+	clearedaudit_logs bool
+	done              bool
+	oldValue          func(context.Context) (*Agent, error)
+	predicates        []predicate.Agent
 }
 
 var _ ent.Mutation = (*AgentMutation)(nil)
@@ -431,6 +436,60 @@ func (m *AgentMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddAuditLogIDs adds the "audit_logs" edge to the AuditLog entity by ids.
+func (m *AgentMutation) AddAuditLogIDs(ids ...uuid.UUID) {
+	if m.audit_logs == nil {
+		m.audit_logs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.audit_logs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAuditLogs clears the "audit_logs" edge to the AuditLog entity.
+func (m *AgentMutation) ClearAuditLogs() {
+	m.clearedaudit_logs = true
+}
+
+// AuditLogsCleared reports if the "audit_logs" edge to the AuditLog entity was cleared.
+func (m *AgentMutation) AuditLogsCleared() bool {
+	return m.clearedaudit_logs
+}
+
+// RemoveAuditLogIDs removes the "audit_logs" edge to the AuditLog entity by IDs.
+func (m *AgentMutation) RemoveAuditLogIDs(ids ...uuid.UUID) {
+	if m.removedaudit_logs == nil {
+		m.removedaudit_logs = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.audit_logs, ids[i])
+		m.removedaudit_logs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAuditLogs returns the removed IDs of the "audit_logs" edge to the AuditLog entity.
+func (m *AgentMutation) RemovedAuditLogsIDs() (ids []uuid.UUID) {
+	for id := range m.removedaudit_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AuditLogsIDs returns the "audit_logs" edge IDs in the mutation.
+func (m *AgentMutation) AuditLogsIDs() (ids []uuid.UUID) {
+	for id := range m.audit_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAuditLogs resets all changes to the "audit_logs" edge.
+func (m *AgentMutation) ResetAuditLogs() {
+	m.audit_logs = nil
+	m.clearedaudit_logs = false
+	m.removedaudit_logs = nil
+}
+
 // Where appends a list predicates to the AgentMutation builder.
 func (m *AgentMutation) Where(ps ...predicate.Agent) {
 	m.predicates = append(m.predicates, ps...)
@@ -688,50 +747,669 @@ func (m *AgentMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AgentMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.audit_logs != nil {
+		edges = append(edges, agent.EdgeAuditLogs)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *AgentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case agent.EdgeAuditLogs:
+		ids := make([]ent.Value, 0, len(m.audit_logs))
+		for id := range m.audit_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AgentMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedaudit_logs != nil {
+		edges = append(edges, agent.EdgeAuditLogs)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *AgentMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case agent.EdgeAuditLogs:
+		ids := make([]ent.Value, 0, len(m.removedaudit_logs))
+		for id := range m.removedaudit_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AgentMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedaudit_logs {
+		edges = append(edges, agent.EdgeAuditLogs)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *AgentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case agent.EdgeAuditLogs:
+		return m.clearedaudit_logs
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *AgentMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown Agent unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *AgentMutation) ResetEdge(name string) error {
+	switch name {
+	case agent.EdgeAuditLogs:
+		m.ResetAuditLogs()
+		return nil
+	}
 	return fmt.Errorf("unknown Agent edge %s", name)
+}
+
+// AuditLogMutation represents an operation that mutates the AuditLog nodes in the graph.
+type AuditLogMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	action        *string
+	reason        *string
+	operator_did  *string
+	occurred_at   *time.Time
+	clearedFields map[string]struct{}
+	agent         *uuid.UUID
+	clearedagent  bool
+	done          bool
+	oldValue      func(context.Context) (*AuditLog, error)
+	predicates    []predicate.AuditLog
+}
+
+var _ ent.Mutation = (*AuditLogMutation)(nil)
+
+// auditlogOption allows management of the mutation configuration using functional options.
+type auditlogOption func(*AuditLogMutation)
+
+// newAuditLogMutation creates new mutation for the AuditLog entity.
+func newAuditLogMutation(c config, op Op, opts ...auditlogOption) *AuditLogMutation {
+	m := &AuditLogMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAuditLog,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAuditLogID sets the ID field of the mutation.
+func withAuditLogID(id uuid.UUID) auditlogOption {
+	return func(m *AuditLogMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AuditLog
+		)
+		m.oldValue = func(ctx context.Context) (*AuditLog, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AuditLog.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAuditLog sets the old AuditLog of the mutation.
+func withAuditLog(node *AuditLog) auditlogOption {
+	return func(m *AuditLogMutation) {
+		m.oldValue = func(context.Context) (*AuditLog, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AuditLogMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AuditLogMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of AuditLog entities.
+func (m *AuditLogMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AuditLogMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AuditLogMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AuditLog.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAction sets the "action" field.
+func (m *AuditLogMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *AuditLogMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *AuditLogMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *AuditLogMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *AuditLogMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ClearReason clears the value of the "reason" field.
+func (m *AuditLogMutation) ClearReason() {
+	m.reason = nil
+	m.clearedFields[auditlog.FieldReason] = struct{}{}
+}
+
+// ReasonCleared returns if the "reason" field was cleared in this mutation.
+func (m *AuditLogMutation) ReasonCleared() bool {
+	_, ok := m.clearedFields[auditlog.FieldReason]
+	return ok
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *AuditLogMutation) ResetReason() {
+	m.reason = nil
+	delete(m.clearedFields, auditlog.FieldReason)
+}
+
+// SetOperatorDid sets the "operator_did" field.
+func (m *AuditLogMutation) SetOperatorDid(s string) {
+	m.operator_did = &s
+}
+
+// OperatorDid returns the value of the "operator_did" field in the mutation.
+func (m *AuditLogMutation) OperatorDid() (r string, exists bool) {
+	v := m.operator_did
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperatorDid returns the old "operator_did" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldOperatorDid(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperatorDid is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperatorDid requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperatorDid: %w", err)
+	}
+	return oldValue.OperatorDid, nil
+}
+
+// ResetOperatorDid resets all changes to the "operator_did" field.
+func (m *AuditLogMutation) ResetOperatorDid() {
+	m.operator_did = nil
+}
+
+// SetOccurredAt sets the "occurred_at" field.
+func (m *AuditLogMutation) SetOccurredAt(t time.Time) {
+	m.occurred_at = &t
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *AuditLogMutation) OccurredAt() (r time.Time, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the AuditLog entity.
+// If the AuditLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AuditLogMutation) OldOccurredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *AuditLogMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+}
+
+// SetAgentID sets the "agent" edge to the Agent entity by id.
+func (m *AuditLogMutation) SetAgentID(id uuid.UUID) {
+	m.agent = &id
+}
+
+// ClearAgent clears the "agent" edge to the Agent entity.
+func (m *AuditLogMutation) ClearAgent() {
+	m.clearedagent = true
+}
+
+// AgentCleared reports if the "agent" edge to the Agent entity was cleared.
+func (m *AuditLogMutation) AgentCleared() bool {
+	return m.clearedagent
+}
+
+// AgentID returns the "agent" edge ID in the mutation.
+func (m *AuditLogMutation) AgentID() (id uuid.UUID, exists bool) {
+	if m.agent != nil {
+		return *m.agent, true
+	}
+	return
+}
+
+// AgentIDs returns the "agent" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AgentID instead. It exists only for internal usage by the builders.
+func (m *AuditLogMutation) AgentIDs() (ids []uuid.UUID) {
+	if id := m.agent; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAgent resets all changes to the "agent" edge.
+func (m *AuditLogMutation) ResetAgent() {
+	m.agent = nil
+	m.clearedagent = false
+}
+
+// Where appends a list predicates to the AuditLogMutation builder.
+func (m *AuditLogMutation) Where(ps ...predicate.AuditLog) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AuditLogMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AuditLogMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AuditLog, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AuditLogMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AuditLogMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AuditLog).
+func (m *AuditLogMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AuditLogMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.action != nil {
+		fields = append(fields, auditlog.FieldAction)
+	}
+	if m.reason != nil {
+		fields = append(fields, auditlog.FieldReason)
+	}
+	if m.operator_did != nil {
+		fields = append(fields, auditlog.FieldOperatorDid)
+	}
+	if m.occurred_at != nil {
+		fields = append(fields, auditlog.FieldOccurredAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AuditLogMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case auditlog.FieldAction:
+		return m.Action()
+	case auditlog.FieldReason:
+		return m.Reason()
+	case auditlog.FieldOperatorDid:
+		return m.OperatorDid()
+	case auditlog.FieldOccurredAt:
+		return m.OccurredAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AuditLogMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case auditlog.FieldAction:
+		return m.OldAction(ctx)
+	case auditlog.FieldReason:
+		return m.OldReason(ctx)
+	case auditlog.FieldOperatorDid:
+		return m.OldOperatorDid(ctx)
+	case auditlog.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AuditLog field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AuditLogMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case auditlog.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case auditlog.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case auditlog.FieldOperatorDid:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperatorDid(v)
+		return nil
+	case auditlog.FieldOccurredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AuditLog field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AuditLogMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AuditLogMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AuditLogMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown AuditLog numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AuditLogMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(auditlog.FieldReason) {
+		fields = append(fields, auditlog.FieldReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AuditLogMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AuditLogMutation) ClearField(name string) error {
+	switch name {
+	case auditlog.FieldReason:
+		m.ClearReason()
+		return nil
+	}
+	return fmt.Errorf("unknown AuditLog nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AuditLogMutation) ResetField(name string) error {
+	switch name {
+	case auditlog.FieldAction:
+		m.ResetAction()
+		return nil
+	case auditlog.FieldReason:
+		m.ResetReason()
+		return nil
+	case auditlog.FieldOperatorDid:
+		m.ResetOperatorDid()
+		return nil
+	case auditlog.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AuditLog field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AuditLogMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.agent != nil {
+		edges = append(edges, auditlog.EdgeAgent)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AuditLogMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case auditlog.EdgeAgent:
+		if id := m.agent; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AuditLogMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AuditLogMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AuditLogMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedagent {
+		edges = append(edges, auditlog.EdgeAgent)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AuditLogMutation) EdgeCleared(name string) bool {
+	switch name {
+	case auditlog.EdgeAgent:
+		return m.clearedagent
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AuditLogMutation) ClearEdge(name string) error {
+	switch name {
+	case auditlog.EdgeAgent:
+		m.ClearAgent()
+		return nil
+	}
+	return fmt.Errorf("unknown AuditLog unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AuditLogMutation) ResetEdge(name string) error {
+	switch name {
+	case auditlog.EdgeAgent:
+		m.ResetAgent()
+		return nil
+	}
+	return fmt.Errorf("unknown AuditLog edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.

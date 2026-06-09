@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
 )
 
@@ -26,8 +27,17 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeAuditLogs holds the string denoting the audit_logs edge name in mutations.
+	EdgeAuditLogs = "audit_logs"
 	// Table holds the table name of the agent in the database.
 	Table = "agents"
+	// AuditLogsTable is the table that holds the audit_logs relation/edge.
+	AuditLogsTable = "audit_logs"
+	// AuditLogsInverseTable is the table name for the AuditLog entity.
+	// It exists in this package in order to avoid circular dependency with the "auditlog" package.
+	AuditLogsInverseTable = "audit_logs"
+	// AuditLogsColumn is the table column denoting the audit_logs relation/edge.
+	AuditLogsColumn = "agent_audit_logs"
 )
 
 // Columns holds all SQL columns for agent fields.
@@ -110,4 +120,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByAuditLogsCount orders the results by audit_logs count.
+func ByAuditLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAuditLogsStep(), opts...)
+	}
+}
+
+// ByAuditLogs orders the results by audit_logs terms.
+func ByAuditLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAuditLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newAuditLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AuditLogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AuditLogsTable, AuditLogsColumn),
+	)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/agentid-chain/agentid-chain/ent/predicate"
 	"github.com/google/uuid"
 )
@@ -348,6 +349,29 @@ func UpdatedAtLT(v time.Time) predicate.Agent {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Agent {
 	return predicate.Agent(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasAuditLogs applies the HasEdge predicate on the "audit_logs" edge.
+func HasAuditLogs() predicate.Agent {
+	return predicate.Agent(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AuditLogsTable, AuditLogsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAuditLogsWith applies the HasEdge predicate on the "audit_logs" edge with a given conditions (other predicates).
+func HasAuditLogsWith(preds ...predicate.AuditLog) predicate.Agent {
+	return predicate.Agent(func(s *sql.Selector) {
+		step := newAuditLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

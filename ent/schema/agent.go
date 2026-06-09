@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -74,7 +75,8 @@ func (Agent) Fields() []ent.Field {
 // 关系在 P3.3 AuditLog schema 中通过 From("agent", Agent.Type) 反向声明。
 func (Agent) Edges() []ent.Edge {
 	return []ent.Edge{
-		// audit_logs edge 由 AuditLog schema 的 From("agent", Agent.Type) 反向声明
+		edge.To("audit_logs", AuditLog.Type).
+			Comment("该 Agent 的全部审计日志（注册/升级/封禁/解封/注销）"),
 	}
 }
 

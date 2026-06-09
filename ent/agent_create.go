@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/agentid-chain/agentid-chain/ent/agent"
+	"github.com/agentid-chain/agentid-chain/ent/auditlog"
 	"github.com/google/uuid"
 )
 
@@ -109,6 +110,21 @@ func (_c *AgentCreate) SetNillableID(v *uuid.UUID) *AgentCreate {
 		_c.SetID(*v)
 	}
 	return _c
+}
+
+// AddAuditLogIDs adds the "audit_logs" edge to the AuditLog entity by IDs.
+func (_c *AgentCreate) AddAuditLogIDs(ids ...uuid.UUID) *AgentCreate {
+	_c.mutation.AddAuditLogIDs(ids...)
+	return _c
+}
+
+// AddAuditLogs adds the "audit_logs" edges to the AuditLog entity.
+func (_c *AgentCreate) AddAuditLogs(v ...*AuditLog) *AgentCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAuditLogIDs(ids...)
 }
 
 // Mutation returns the AgentMutation object of the builder.
@@ -265,6 +281,22 @@ func (_c *AgentCreate) createSpec() (*Agent, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(agent.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.AuditLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/agentid-chain/agentid-chain/ent/agent"
+	"github.com/agentid-chain/agentid-chain/ent/auditlog"
 	"github.com/agentid-chain/agentid-chain/ent/schema"
 	"github.com/agentid-chain/agentid-chain/ent/user"
 	"github.com/google/uuid"
@@ -65,6 +66,56 @@ func init() {
 	agentDescID := agentFields[0].Descriptor()
 	// agent.DefaultID holds the default value on creation for the id field.
 	agent.DefaultID = agentDescID.Default.(func() uuid.UUID)
+	auditlogFields := schema.AuditLog{}.Fields()
+	_ = auditlogFields
+	// auditlogDescAction is the schema descriptor for action field.
+	auditlogDescAction := auditlogFields[1].Descriptor()
+	// auditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	auditlog.ActionValidator = func() func(string) error {
+		validators := auditlogDescAction.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(action string) error {
+			for _, fn := range fns {
+				if err := fn(action); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// auditlogDescReason is the schema descriptor for reason field.
+	auditlogDescReason := auditlogFields[2].Descriptor()
+	// auditlog.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	auditlog.ReasonValidator = auditlogDescReason.Validators[0].(func(string) error)
+	// auditlogDescOperatorDid is the schema descriptor for operator_did field.
+	auditlogDescOperatorDid := auditlogFields[3].Descriptor()
+	// auditlog.OperatorDidValidator is a validator for the "operator_did" field. It is called by the builders before save.
+	auditlog.OperatorDidValidator = func() func(string) error {
+		validators := auditlogDescOperatorDid.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(operator_did string) error {
+			for _, fn := range fns {
+				if err := fn(operator_did); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// auditlogDescOccurredAt is the schema descriptor for occurred_at field.
+	auditlogDescOccurredAt := auditlogFields[4].Descriptor()
+	// auditlog.DefaultOccurredAt holds the default value on creation for the occurred_at field.
+	auditlog.DefaultOccurredAt = auditlogDescOccurredAt.Default.(func() time.Time)
+	// auditlogDescID is the schema descriptor for id field.
+	auditlogDescID := auditlogFields[0].Descriptor()
+	// auditlog.DefaultID holds the default value on creation for the id field.
+	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescEmail is the schema descriptor for email field.

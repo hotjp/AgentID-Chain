@@ -30,8 +30,29 @@ type Agent struct {
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 更新时间（ent hook 自动维护）
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the AgentQuery when eager-loading is set.
+	Edges        AgentEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// AgentEdges holds the relations/edges for other nodes in the graph.
+type AgentEdges struct {
+	// 该 Agent 的全部审计日志（注册/升级/封禁/解封/注销）
+	AuditLogs []*AuditLog `json:"audit_logs,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// AuditLogsOrErr returns the AuditLogs value or an error if the edge
+// was not loaded in eager-loading.
+func (e AgentEdges) AuditLogsOrErr() ([]*AuditLog, error) {
+	if e.loadedTypes[0] {
+		return e.AuditLogs, nil
+	}
+	return nil, &NotLoadedError{edge: "audit_logs"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -115,6 +136,11 @@ func (_m *Agent) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Agent) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryAuditLogs queries the "audit_logs" edge of the Agent entity.
+func (_m *Agent) QueryAuditLogs() *AuditLogQuery {
+	return NewAgentClient(_m.config).QueryAuditLogs(_m)
 }
 
 // Update returns a builder for updating this Agent.

@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/agentid-chain/agentid-chain/ent/agent"
+	"github.com/agentid-chain/agentid-chain/ent/auditlog"
 	"github.com/agentid-chain/agentid-chain/ent/predicate"
+	"github.com/google/uuid"
 )
 
 // AgentUpdate is the builder for updating Agent entities.
@@ -111,9 +113,45 @@ func (_u *AgentUpdate) SetUpdatedAt(v time.Time) *AgentUpdate {
 	return _u
 }
 
+// AddAuditLogIDs adds the "audit_logs" edge to the AuditLog entity by IDs.
+func (_u *AgentUpdate) AddAuditLogIDs(ids ...uuid.UUID) *AgentUpdate {
+	_u.mutation.AddAuditLogIDs(ids...)
+	return _u
+}
+
+// AddAuditLogs adds the "audit_logs" edges to the AuditLog entity.
+func (_u *AgentUpdate) AddAuditLogs(v ...*AuditLog) *AgentUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditLogIDs(ids...)
+}
+
 // Mutation returns the AgentMutation object of the builder.
 func (_u *AgentUpdate) Mutation() *AgentMutation {
 	return _u.mutation
+}
+
+// ClearAuditLogs clears all "audit_logs" edges to the AuditLog entity.
+func (_u *AgentUpdate) ClearAuditLogs() *AgentUpdate {
+	_u.mutation.ClearAuditLogs()
+	return _u
+}
+
+// RemoveAuditLogIDs removes the "audit_logs" edge to AuditLog entities by IDs.
+func (_u *AgentUpdate) RemoveAuditLogIDs(ids ...uuid.UUID) *AgentUpdate {
+	_u.mutation.RemoveAuditLogIDs(ids...)
+	return _u
+}
+
+// RemoveAuditLogs removes "audit_logs" edges to AuditLog entities.
+func (_u *AgentUpdate) RemoveAuditLogs(v ...*AuditLog) *AgentUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditLogIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -207,6 +245,51 @@ func (_u *AgentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(agent.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AuditLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditLogsIDs(); len(nodes) > 0 && !_u.mutation.AuditLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -311,9 +394,45 @@ func (_u *AgentUpdateOne) SetUpdatedAt(v time.Time) *AgentUpdateOne {
 	return _u
 }
 
+// AddAuditLogIDs adds the "audit_logs" edge to the AuditLog entity by IDs.
+func (_u *AgentUpdateOne) AddAuditLogIDs(ids ...uuid.UUID) *AgentUpdateOne {
+	_u.mutation.AddAuditLogIDs(ids...)
+	return _u
+}
+
+// AddAuditLogs adds the "audit_logs" edges to the AuditLog entity.
+func (_u *AgentUpdateOne) AddAuditLogs(v ...*AuditLog) *AgentUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAuditLogIDs(ids...)
+}
+
 // Mutation returns the AgentMutation object of the builder.
 func (_u *AgentUpdateOne) Mutation() *AgentMutation {
 	return _u.mutation
+}
+
+// ClearAuditLogs clears all "audit_logs" edges to the AuditLog entity.
+func (_u *AgentUpdateOne) ClearAuditLogs() *AgentUpdateOne {
+	_u.mutation.ClearAuditLogs()
+	return _u
+}
+
+// RemoveAuditLogIDs removes the "audit_logs" edge to AuditLog entities by IDs.
+func (_u *AgentUpdateOne) RemoveAuditLogIDs(ids ...uuid.UUID) *AgentUpdateOne {
+	_u.mutation.RemoveAuditLogIDs(ids...)
+	return _u
+}
+
+// RemoveAuditLogs removes "audit_logs" edges to AuditLog entities.
+func (_u *AgentUpdateOne) RemoveAuditLogs(v ...*AuditLog) *AgentUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAuditLogIDs(ids...)
 }
 
 // Where appends a list predicates to the AgentUpdate builder.
@@ -437,6 +556,51 @@ func (_u *AgentUpdateOne) sqlSave(ctx context.Context) (_node *Agent, err error)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(agent.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AuditLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAuditLogsIDs(); len(nodes) > 0 && !_u.mutation.AuditLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AuditLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   agent.AuditLogsTable,
+			Columns: []string{agent.AuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Agent{config: _u.config}
 	_spec.Assign = _node.assignValues

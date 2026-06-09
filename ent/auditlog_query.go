@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -18,53 +17,54 @@ import (
 	"github.com/google/uuid"
 )
 
-// AgentQuery is the builder for querying Agent entities.
-type AgentQuery struct {
+// AuditLogQuery is the builder for querying AuditLog entities.
+type AuditLogQuery struct {
 	config
-	ctx           *QueryContext
-	order         []agent.OrderOption
-	inters        []Interceptor
-	predicates    []predicate.Agent
-	withAuditLogs *AuditLogQuery
+	ctx        *QueryContext
+	order      []auditlog.OrderOption
+	inters     []Interceptor
+	predicates []predicate.AuditLog
+	withAgent  *AgentQuery
+	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the AgentQuery builder.
-func (_q *AgentQuery) Where(ps ...predicate.Agent) *AgentQuery {
+// Where adds a new predicate for the AuditLogQuery builder.
+func (_q *AuditLogQuery) Where(ps ...predicate.AuditLog) *AuditLogQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *AgentQuery) Limit(limit int) *AgentQuery {
+func (_q *AuditLogQuery) Limit(limit int) *AuditLogQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *AgentQuery) Offset(offset int) *AgentQuery {
+func (_q *AuditLogQuery) Offset(offset int) *AuditLogQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *AgentQuery) Unique(unique bool) *AgentQuery {
+func (_q *AuditLogQuery) Unique(unique bool) *AuditLogQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *AgentQuery) Order(o ...agent.OrderOption) *AgentQuery {
+func (_q *AuditLogQuery) Order(o ...auditlog.OrderOption) *AuditLogQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryAuditLogs chains the current query on the "audit_logs" edge.
-func (_q *AgentQuery) QueryAuditLogs() *AuditLogQuery {
-	query := (&AuditLogClient{config: _q.config}).Query()
+// QueryAgent chains the current query on the "agent" edge.
+func (_q *AuditLogQuery) QueryAgent() *AgentQuery {
+	query := (&AgentClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -74,9 +74,9 @@ func (_q *AgentQuery) QueryAuditLogs() *AuditLogQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(agent.Table, agent.FieldID, selector),
-			sqlgraph.To(auditlog.Table, auditlog.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, agent.AuditLogsTable, agent.AuditLogsColumn),
+			sqlgraph.From(auditlog.Table, auditlog.FieldID, selector),
+			sqlgraph.To(agent.Table, agent.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, auditlog.AgentTable, auditlog.AgentColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -84,21 +84,21 @@ func (_q *AgentQuery) QueryAuditLogs() *AuditLogQuery {
 	return query
 }
 
-// First returns the first Agent entity from the query.
-// Returns a *NotFoundError when no Agent was found.
-func (_q *AgentQuery) First(ctx context.Context) (*Agent, error) {
+// First returns the first AuditLog entity from the query.
+// Returns a *NotFoundError when no AuditLog was found.
+func (_q *AuditLogQuery) First(ctx context.Context) (*AuditLog, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{agent.Label}
+		return nil, &NotFoundError{auditlog.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *AgentQuery) FirstX(ctx context.Context) *Agent {
+func (_q *AuditLogQuery) FirstX(ctx context.Context) *AuditLog {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -106,22 +106,22 @@ func (_q *AgentQuery) FirstX(ctx context.Context) *Agent {
 	return node
 }
 
-// FirstID returns the first Agent ID from the query.
-// Returns a *NotFoundError when no Agent ID was found.
-func (_q *AgentQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first AuditLog ID from the query.
+// Returns a *NotFoundError when no AuditLog ID was found.
+func (_q *AuditLogQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{agent.Label}
+		err = &NotFoundError{auditlog.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *AgentQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *AuditLogQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -129,10 +129,10 @@ func (_q *AgentQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single Agent entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Agent entity is found.
-// Returns a *NotFoundError when no Agent entities are found.
-func (_q *AgentQuery) Only(ctx context.Context) (*Agent, error) {
+// Only returns a single AuditLog entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one AuditLog entity is found.
+// Returns a *NotFoundError when no AuditLog entities are found.
+func (_q *AuditLogQuery) Only(ctx context.Context) (*AuditLog, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -141,14 +141,14 @@ func (_q *AgentQuery) Only(ctx context.Context) (*Agent, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{agent.Label}
+		return nil, &NotFoundError{auditlog.Label}
 	default:
-		return nil, &NotSingularError{agent.Label}
+		return nil, &NotSingularError{auditlog.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *AgentQuery) OnlyX(ctx context.Context) *Agent {
+func (_q *AuditLogQuery) OnlyX(ctx context.Context) *AuditLog {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -156,10 +156,10 @@ func (_q *AgentQuery) OnlyX(ctx context.Context) *Agent {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Agent ID in the query.
-// Returns a *NotSingularError when more than one Agent ID is found.
+// OnlyID is like Only, but returns the only AuditLog ID in the query.
+// Returns a *NotSingularError when more than one AuditLog ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *AgentQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *AuditLogQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -168,15 +168,15 @@ func (_q *AgentQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{agent.Label}
+		err = &NotFoundError{auditlog.Label}
 	default:
-		err = &NotSingularError{agent.Label}
+		err = &NotSingularError{auditlog.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *AgentQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *AuditLogQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -184,18 +184,18 @@ func (_q *AgentQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of Agents.
-func (_q *AgentQuery) All(ctx context.Context) ([]*Agent, error) {
+// All executes the query and returns a list of AuditLogs.
+func (_q *AuditLogQuery) All(ctx context.Context) ([]*AuditLog, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Agent, *AgentQuery]()
-	return withInterceptors[[]*Agent](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*AuditLog, *AuditLogQuery]()
+	return withInterceptors[[]*AuditLog](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *AgentQuery) AllX(ctx context.Context) []*Agent {
+func (_q *AuditLogQuery) AllX(ctx context.Context) []*AuditLog {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -203,20 +203,20 @@ func (_q *AgentQuery) AllX(ctx context.Context) []*Agent {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Agent IDs.
-func (_q *AgentQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of AuditLog IDs.
+func (_q *AuditLogQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(agent.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(auditlog.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *AgentQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *AuditLogQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -225,16 +225,16 @@ func (_q *AgentQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *AgentQuery) Count(ctx context.Context) (int, error) {
+func (_q *AuditLogQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*AgentQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*AuditLogQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *AgentQuery) CountX(ctx context.Context) int {
+func (_q *AuditLogQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -243,7 +243,7 @@ func (_q *AgentQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *AgentQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *AuditLogQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -256,7 +256,7 @@ func (_q *AgentQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *AgentQuery) ExistX(ctx context.Context) bool {
+func (_q *AuditLogQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -264,33 +264,33 @@ func (_q *AgentQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the AgentQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the AuditLogQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *AgentQuery) Clone() *AgentQuery {
+func (_q *AuditLogQuery) Clone() *AuditLogQuery {
 	if _q == nil {
 		return nil
 	}
-	return &AgentQuery{
-		config:        _q.config,
-		ctx:           _q.ctx.Clone(),
-		order:         append([]agent.OrderOption{}, _q.order...),
-		inters:        append([]Interceptor{}, _q.inters...),
-		predicates:    append([]predicate.Agent{}, _q.predicates...),
-		withAuditLogs: _q.withAuditLogs.Clone(),
+	return &AuditLogQuery{
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]auditlog.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.AuditLog{}, _q.predicates...),
+		withAgent:  _q.withAgent.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithAuditLogs tells the query-builder to eager-load the nodes that are connected to
-// the "audit_logs" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *AgentQuery) WithAuditLogs(opts ...func(*AuditLogQuery)) *AgentQuery {
-	query := (&AuditLogClient{config: _q.config}).Query()
+// WithAgent tells the query-builder to eager-load the nodes that are connected to
+// the "agent" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AuditLogQuery) WithAgent(opts ...func(*AgentQuery)) *AuditLogQuery {
+	query := (&AgentClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withAuditLogs = query
+	_q.withAgent = query
 	return _q
 }
 
@@ -300,19 +300,19 @@ func (_q *AgentQuery) WithAuditLogs(opts ...func(*AuditLogQuery)) *AgentQuery {
 // Example:
 //
 //	var v []struct {
-//		OwnerDid string `json:"owner_did,omitempty"`
+//		Action string `json:"action,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Agent.Query().
-//		GroupBy(agent.FieldOwnerDid).
+//	client.AuditLog.Query().
+//		GroupBy(auditlog.FieldAction).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *AgentQuery) GroupBy(field string, fields ...string) *AgentGroupBy {
+func (_q *AuditLogQuery) GroupBy(field string, fields ...string) *AuditLogGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &AgentGroupBy{build: _q}
+	grbuild := &AuditLogGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = agent.Label
+	grbuild.label = auditlog.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -323,26 +323,26 @@ func (_q *AgentQuery) GroupBy(field string, fields ...string) *AgentGroupBy {
 // Example:
 //
 //	var v []struct {
-//		OwnerDid string `json:"owner_did,omitempty"`
+//		Action string `json:"action,omitempty"`
 //	}
 //
-//	client.Agent.Query().
-//		Select(agent.FieldOwnerDid).
+//	client.AuditLog.Query().
+//		Select(auditlog.FieldAction).
 //		Scan(ctx, &v)
-func (_q *AgentQuery) Select(fields ...string) *AgentSelect {
+func (_q *AuditLogQuery) Select(fields ...string) *AuditLogSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &AgentSelect{AgentQuery: _q}
-	sbuild.label = agent.Label
+	sbuild := &AuditLogSelect{AuditLogQuery: _q}
+	sbuild.label = auditlog.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a AgentSelect configured with the given aggregations.
-func (_q *AgentQuery) Aggregate(fns ...AggregateFunc) *AgentSelect {
+// Aggregate returns a AuditLogSelect configured with the given aggregations.
+func (_q *AuditLogQuery) Aggregate(fns ...AggregateFunc) *AuditLogSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *AgentQuery) prepareQuery(ctx context.Context) error {
+func (_q *AuditLogQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -354,7 +354,7 @@ func (_q *AgentQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !agent.ValidColumn(f) {
+		if !auditlog.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -368,19 +368,26 @@ func (_q *AgentQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *AgentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Agent, error) {
+func (_q *AuditLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*AuditLog, error) {
 	var (
-		nodes       = []*Agent{}
+		nodes       = []*AuditLog{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
-			_q.withAuditLogs != nil,
+			_q.withAgent != nil,
 		}
 	)
+	if _q.withAgent != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, auditlog.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Agent).scanValues(nil, columns)
+		return (*AuditLog).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Agent{config: _q.config}
+		node := &AuditLog{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -394,49 +401,49 @@ func (_q *AgentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Agent,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withAuditLogs; query != nil {
-		if err := _q.loadAuditLogs(ctx, query, nodes,
-			func(n *Agent) { n.Edges.AuditLogs = []*AuditLog{} },
-			func(n *Agent, e *AuditLog) { n.Edges.AuditLogs = append(n.Edges.AuditLogs, e) }); err != nil {
+	if query := _q.withAgent; query != nil {
+		if err := _q.loadAgent(ctx, query, nodes, nil,
+			func(n *AuditLog, e *Agent) { n.Edges.Agent = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *AgentQuery) loadAuditLogs(ctx context.Context, query *AuditLogQuery, nodes []*Agent, init func(*Agent), assign func(*Agent, *AuditLog)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*Agent)
+func (_q *AuditLogQuery) loadAgent(ctx context.Context, query *AgentQuery, nodes []*AuditLog, init func(*AuditLog), assign func(*AuditLog, *Agent)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*AuditLog)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		if nodes[i].agent_audit_logs == nil {
+			continue
 		}
+		fk := *nodes[i].agent_audit_logs
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	query.withFKs = true
-	query.Where(predicate.AuditLog(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(agent.AuditLogsColumn), fks...))
-	}))
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(agent.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.agent_audit_logs
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "agent_audit_logs" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "agent_audit_logs" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "agent_audit_logs" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
 
-func (_q *AgentQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *AuditLogQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -445,8 +452,8 @@ func (_q *AgentQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *AgentQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(agent.Table, agent.Columns, sqlgraph.NewFieldSpec(agent.FieldID, field.TypeUUID))
+func (_q *AuditLogQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(auditlog.Table, auditlog.Columns, sqlgraph.NewFieldSpec(auditlog.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -455,9 +462,9 @@ func (_q *AgentQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, agent.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, auditlog.FieldID)
 		for i := range fields {
-			if fields[i] != agent.FieldID {
+			if fields[i] != auditlog.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -485,12 +492,12 @@ func (_q *AgentQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *AgentQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *AuditLogQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(agent.Table)
+	t1 := builder.Table(auditlog.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = agent.Columns
+		columns = auditlog.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -517,28 +524,28 @@ func (_q *AgentQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// AgentGroupBy is the group-by builder for Agent entities.
-type AgentGroupBy struct {
+// AuditLogGroupBy is the group-by builder for AuditLog entities.
+type AuditLogGroupBy struct {
 	selector
-	build *AgentQuery
+	build *AuditLogQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *AgentGroupBy) Aggregate(fns ...AggregateFunc) *AgentGroupBy {
+func (_g *AuditLogGroupBy) Aggregate(fns ...AggregateFunc) *AuditLogGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *AgentGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *AuditLogGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*AgentQuery, *AgentGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*AuditLogQuery, *AuditLogGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *AgentGroupBy) sqlScan(ctx context.Context, root *AgentQuery, v any) error {
+func (_g *AuditLogGroupBy) sqlScan(ctx context.Context, root *AuditLogQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -565,28 +572,28 @@ func (_g *AgentGroupBy) sqlScan(ctx context.Context, root *AgentQuery, v any) er
 	return sql.ScanSlice(rows, v)
 }
 
-// AgentSelect is the builder for selecting fields of Agent entities.
-type AgentSelect struct {
-	*AgentQuery
+// AuditLogSelect is the builder for selecting fields of AuditLog entities.
+type AuditLogSelect struct {
+	*AuditLogQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *AgentSelect) Aggregate(fns ...AggregateFunc) *AgentSelect {
+func (_s *AuditLogSelect) Aggregate(fns ...AggregateFunc) *AuditLogSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *AgentSelect) Scan(ctx context.Context, v any) error {
+func (_s *AuditLogSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*AgentQuery, *AgentSelect](ctx, _s.AgentQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*AuditLogQuery, *AuditLogSelect](ctx, _s.AuditLogQuery, _s, _s.inters, v)
 }
 
-func (_s *AgentSelect) sqlScan(ctx context.Context, root *AgentQuery, v any) error {
+func (_s *AuditLogSelect) sqlScan(ctx context.Context, root *AuditLogQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

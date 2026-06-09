@@ -1,0 +1,149 @@
+# =============================================================================
+# AgentID-Chain — testdata/fixtures (P15.5)
+# =============================================================================
+# 测试夹具数据（User / Agent / AuditLog / OutboxEvent）
+# 用法：
+#   fixtures.Load(t, "testdata/fixtures.yaml") → 返回 *Fixtures 结构
+#   fixtures.User("alice") → *User
+# =============================================================================
+
+# ---------- User 夹具 ----------
+users:
+  - id: "usr_alice_001"
+    did: "did:agentid:alice"
+    email: "alice@example.com"
+    display_name: "Alice Wang"
+    kyc_passed: true
+    created_at: "2026-01-15T08:00:00Z"
+
+  - id: "usr_bob_002"
+    did: "did:agentid:bob"
+    email: "bob@example.com"
+    display_name: "Bob Chen"
+    kyc_passed: false
+    created_at: "2026-02-01T10:30:00Z"
+
+  - id: "usr_carol_003"
+    did: "did:agentid:carol"
+    email: "carol@example.com"
+    display_name: "Carol Liu"
+    kyc_passed: true
+    created_at: "2026-03-10T14:15:00Z"
+
+  - id: "usr_dave_004"
+    did: "did:agentid:dave"
+    email: "dave@example.com"
+    display_name: "Dave Zhang"
+    kyc_passed: false
+    created_at: "2026-04-22T09:45:00Z"
+
+# ---------- Agent 夹具 ----------
+agents:
+  - id: "019eab1a-b761-7a60-955c-37f926faa100"
+    owner_did: "did:agentid:alice"
+    name: "alice-assistant"
+    level: 1
+    permissions: 255          # 0xFF
+    public_key: "pk_alice_default"
+    status: "active"
+    created_at: "2026-01-15T08:30:00Z"
+    updated_at: "2026-01-15T08:30:00Z"
+
+  - id: "019eab1a-b761-7a60-955c-37f926faa101"
+    owner_did: "did:agentid:alice"
+    name: "alice-pro-bot"
+    level: 2
+    permissions: 4095         # 0xFFF
+    public_key: "pk_alice_pro"
+    status: "active"
+    created_at: "2026-02-20T11:00:00Z"
+    updated_at: "2026-04-10T15:30:00Z"
+
+  - id: "019eab1a-b761-7a60-955c-37f926faa102"
+    owner_did: "did:agentid:bob"
+    name: "bob-helper"
+    level: 1
+    permissions: 1            # READ_TAGS only
+    public_key: "pk_bob_helper"
+    status: "banned"
+    banned_at: "2026-05-01T12:00:00Z"
+    ban_reason: "spam"
+    created_at: "2026-03-05T09:00:00Z"
+    updated_at: "2026-05-01T12:00:00Z"
+
+  - id: "019eab1a-b761-7a60-955c-37f926faa103"
+    owner_did: "did:agentid:carol"
+    name: "carol-enterprise"
+    level: 3
+    permissions: 4294967295   # 0xFFFFFFFF
+    public_key: "pk_carol_ent"
+    status: "active"
+    created_at: "2026-04-01T08:00:00Z"
+    updated_at: "2026-04-01T08:00:00Z"
+
+# ---------- AuditLog 夹具 ----------
+audit_logs:
+  - id: 1
+    actor: "did:agentid:alice"
+    action: "agent.register"
+    target: "019eab1a-b761-7a60-955c-37f926faa100"
+    metadata:
+      level: 1
+      permissions: 255
+    created_at: "2026-01-15T08:30:00Z"
+
+  - id: 2
+    actor: "did:agentid:alice"
+    action: "agent.upgrade"
+    target: "019eab1a-b761-7a60-955c-37f926faa101"
+    metadata:
+      from_level: 1
+      to_level: 2
+    created_at: "2026-02-20T11:00:00Z"
+
+  - id: 3
+    actor: "did:agentid:admin"
+    action: "agent.ban"
+    target: "019eab1a-b761-7a60-955c-37f926faa102"
+    metadata:
+      reason: "spam"
+    created_at: "2026-05-01T12:00:00Z"
+
+  - id: 4
+    actor: "did:agentid:carol"
+    action: "agent.register"
+    target: "019eab1a-b761-7a60-955c-37f926faa103"
+    metadata:
+      level: 3
+    created_at: "2026-04-01T08:00:00Z"
+
+# ---------- OutboxEvent 夹具 ----------
+outbox_events:
+  - id: "evt_001"
+    aggregate: "agent"
+    aggregate_id: "019eab1a-b761-7a60-955c-37f926faa100"
+    event_type: "AgentRegistered"
+    payload:
+      owner: "did:agentid:alice"
+      level: 1
+    status: "pending"
+    created_at: "2026-01-15T08:30:00Z"
+
+  - id: "evt_002"
+    aggregate: "agent"
+    aggregate_id: "019eab1a-b761-7a60-955c-37f926faa101"
+    event_type: "AgentUpgraded"
+    payload:
+      from_level: 1
+      to_level: 2
+    status: "published"
+    created_at: "2026-02-20T11:00:00Z"
+
+  - id: "evt_003"
+    aggregate: "agent"
+    aggregate_id: "019eab1a-b761-7a60-955c-37f926faa102"
+    event_type: "AgentBanned"
+    payload:
+      reason: "spam"
+    status: "published"
+    created_at: "2026-05-01T12:00:00Z"

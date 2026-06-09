@@ -89,6 +89,29 @@ test: ## 跑单元测试（race + verbose）
 test-short: ## 跑短测试（跳过慢测试）
 	$(GO) test -race -short $(PKGS)
 
+.PHONY: test-race
+test-race: ## 跑测试 + race detector（必过；CI 强制）
+	$(GO) test -race -count=1 -timeout 5m $(PKGS)
+
+.PHONY: test-race-short
+test-race-short: ## 跑短测试 + race detector
+	$(GO) test -race -short -count=1 -timeout 2m $(PKGS)
+
+.PHONY: test-stress
+test-stress: ## 压力测试（同一测试跑 10 次，暴露 flaky bug）
+	$(GO) test -race -count=10 -timeout 30m $(PKGS)
+
+.PHONY: test-bench
+test-bench: ## 跑 benchmark
+	$(GO) test -bench=. -benchmem -run=^$$ -benchtime=3s $(PKGS)
+
+.PHONY: test-fuzz
+test-fuzz: ## 跑 fuzz（30s / 函数）
+	$(GO) test -fuzz=. -fuzztime=30s $(PKGS)
+
+.PHONY: test-all
+test-all: test test-race test-integration ## 跑全部测试套
+
 .PHONY: test-integration
 test-integration: ## 跑集成测试（需要 PostgreSQL/Redis 起好；tag=integration）
 	$(GO) test -race -tags=integration -v $(PKGS)
@@ -104,6 +127,15 @@ coverage: ## 生成覆盖率，并校验 ≥ $(COVERAGE_MIN)%
 coverage-html: coverage ## 生成 HTML 覆盖率报告 (coverage.html)
 	$(GO) tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
 	@echo "✅ 已生成 $(COVERAGE_HTML)"
+
+.PHONY: coverage-pkg
+coverage-pkg: ## 按包查看覆盖率（CI 友好）
+	@$(GO) test -coverprofile=$(COVERAGE_FILE) -covermode=atomic $(PKGS) 2>&1 | grep -E "^ok" | awk '{printf "%-60s %s\n", $$2, $$3}'
+
+.PHONY: coverage-low
+coverage-low: ## 列出覆盖率 < $(COVERAGE_MIN)% 的包
+	@echo "==> 覆盖率 < $(COVERAGE_MIN)% 的包："
+	@$(GO) test -coverprofile=$(COVERAGE_FILE) -covermode=atomic $(PKGS) 2>&1 | grep -E "^ok" | awk '{print $$2, $$3}' | awk -F'[ %]' '{if ($$3 < $(COVERAGE_MIN)) print $$1, $$3"%"}'
 
 # =============================================================================
 ## 代码质量

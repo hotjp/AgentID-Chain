@@ -1,3 +1,52 @@
 {
-  "locks": {}
+  "locks": {
+    "task_025_02": {
+      "session_id": "task_025_02_202606100647_565b",
+      "task_id": "task_025_02",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:46.644012",
+      "last_heartbeat": "2026-06-10T06:47:46.644012",
+      "checkpoint": null
+    },
+    "task_025_03": {
+      "session_id": "task_025_03_202606100647_df8d",
+      "task_id": "task_025_03",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:46.719393",
+      "last_heartbeat": "2026-06-10T06:47:46.719393",
+      "checkpoint": null
+    },
+    "task_025_04": {
+      "session_id": "task_025_04_202606100647_6ab4",
+      "task_id": "task_025_04",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:46.795015",
+      "last_heartbeat": "2026-06-10T06:47:46.795015",
+      "checkpoint": null
+    },
+    "task_025_05": {
+      "session_id": "task_025_05_202606100647_e7e1",
+      "task_id": "task_025_05",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:46.871391",
+      "last_heartbeat": "2026-06-10T06:47:46.871391",
+      "checkpoint": null
+    },
+    "task_025_06": {
+      "session_id": "task_025_06_202606100647_a840",
+      "task_id": "task_025_06",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:46.947844",
+      "last_heartbeat": "2026-06-10T06:47:46.947844",
+      "checkpoint": null
+    },
+    "task_025_07": {
+      "session_id": "task_025_07_202606100647_ca49",
+      "task_id": "task_025_07",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:47:47.021683",
+      "last_heartbeat": "2026-06-10T06:47:47.021683",
+      "checkpoint": null
+    }
+  }
 }

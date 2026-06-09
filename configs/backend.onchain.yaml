@@ -1,0 +1,93 @@
+# AgentID-Chain backend.yaml — onchain 模式（链上是 source of truth）
+#
+# 适用场景：生产 / 真实链上交互（FISCO BCOS / Polygon / BSC / Ethereum）。
+# 数据：链上 + PostgreSQL（DB 镜像链上状态，便于查询）。
+
+service:
+  name: agentid-chain
+  version: 2.0.1
+  role: gateway
+  http_addr: :8080
+  grpc_addr: :8080
+
+log:
+  level: info
+  format: json
+  source: true
+
+backend:
+  type: onchain     # 强制走链上
+
+storage:
+  db:
+    driver: postgres
+    dsn: postgres://produser:CHANGE_ME@db.prod.example.com:5432/apigateway?sslmode=require
+    max_open: 50
+    max_idle: 10
+    max_lifetime: 1h
+  redis:
+    addr: redis.prod.example.com:6379
+    password: CHANGE_ME
+    db: 0
+    timeout: 3s
+  outbox:
+    enabled: true
+    stream_key: agentid:outbox
+    max_len: 1000000
+    group_name: agentid-outbox
+    block_time: 5s
+  audit:
+    retention_days: 365
+  revocation:
+    backend: db      # 生产用 DB（持久性更强）
+
+authz:
+  ratelimit:
+    enabled: true
+    rps: 500
+    burst: 1000
+  ua_intercept:
+    enabled: true
+    blocked_substrings:
+      - "bot/"
+      - "crawler"
+      - "spider"
+  aap:
+    enabled: true
+    challenge_ttl: 30s
+  moltcaptcha:
+    enabled: true
+    challenge_ttl: 60s
+    max_attempts: 3
+  a2a:
+    enabled: true
+    default_ttl: 15m
+    max_trust_level: 100
+  rbac:
+    enabled: true
+
+chain:
+  type: fisco       # fisco|polygon|bsc|ethereum|mock
+  endpoint: https://bsn-base.example.com:8545
+  contract_addr: 0xABCD1234567890ABCDEF1234567890ABCDEF1234
+  gas_limit: 3000000
+  # 链上账户（仅签名用；不要在生产用明文私钥，用 KMS）
+  signer_key_path: /etc/agentid/keys/chain-signer.pem
+
+aap:
+  domain_key_path: /etc/agentid/keys/aap-domain.pem
+
+a2a:
+  domain_key_path: /etc/agentid/keys/a2a-domain.pem
+  issuer: agentid-chain-prod
+  key_id: a2a-prod-2026
+
+moltcaptcha:
+  hmac_secret: CHANGE_ME_USE_KMS
+  puzzle_difficulty: 4
+
+telemetry:
+  otel_endpoint: otel-collector.observability.svc:4317
+  metrics_addr: :9090
+  pprof_addr: :6060
+  sample_rate: 0.05

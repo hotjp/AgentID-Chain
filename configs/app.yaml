@@ -1,0 +1,160 @@
+# AgentID-Chain app.yaml — 业务应用主配置
+#
+# 服务端主入口（agentid serve --config configs/app.yaml）使用的总配置。
+# 包含 service / storage / authz / telemetry / plugins 五大段。
+#
+# 与 backend.local.yaml 的关系：
+#   - backend.local.yaml = 简化的本地开发配置（仅基础段）
+#   - app.yaml           = 完整的应用配置（生产可用，含 plugins）
+
+# ============ 服务基本信息 ============
+service:
+  name: agentid-chain
+  version: 2.0.1
+  role: gateway                # gateway|auth-center|tag-sense|mcp
+  http_addr: ":8080"
+  grpc_addr: ":8080"
+  read_timeout: 15s
+  write_timeout: 30s
+  idle_timeout: 120s
+  shutdown_timeout: 30s
+
+# ============ 日志 ============
+log:
+  level: info                  # debug|info|warn|error
+  format: json                 # json|text
+  source: false                # 是否记录 source 字段
+  output: stdout               # stdout|stderr|file
+  file_path: ""                # output=file 时启用
+  rotation:
+    max_size_mb: 100
+    max_backups: 10
+    max_age_days: 30
+    compress: true
+
+# ============ 存储层 L1 ============
+storage:
+  db:
+    driver: postgres
+    dsn: postgres://devuser:devpass@localhost:5432/apigateway?sslmode=disable
+    max_open: 25
+    max_idle: 5
+    max_lifetime: 30m
+    conn_timeout: 5s
+    query_timeout: 10s
+  redis:
+    addr: localhost:6379
+    password: ""
+    db: 0
+    timeout: 3s
+    pool_size: 20
+    min_idle_conns: 5
+  outbox:
+    enabled: true
+    stream_key: agentid:outbox
+    max_len: 1000000
+    group_name: agentid-outbox
+    block_time: 2s
+    consumer_name: ""           # 空 = 自动生成
+    batch_size: 100
+  audit:
+    retention_days: 365
+    batch_size: 100
+    flush_interval: 5s
+  revocation:
+    backend: redis
+    cache_ttl: 30s
+
+# ============ 鉴权层 L3 ============
+authz:
+  rbac:
+    enabled: true
+    level_max_permissions:
+      "1": 255                  # 0xFF
+      "2": 4095                 # 0xFFF
+      "3": 4294967295           # 0xFFFFFFFF
+  ratelimit:
+    enabled: true
+    rps: 1000
+    burst: 2000
+    per_ip_per_minute: 60
+    per_ip_per_hour: 1000
+  ua_intercept:
+    enabled: true
+    blocked_substrings:
+      - "bot/"
+      - "crawler"
+      - "spider"
+      - "headless"
+  aap:
+    enabled: true
+    challenge_ttl: 30s
+    require_https: false
+  moltcaptcha:
+    enabled: true
+    challenge_ttl: 60s
+    max_attempts: 3
+    puzzle_difficulty: 3
+  a2a:
+    enabled: true
+    default_ttl: 15m
+    max_ttl: 24h
+    min_ttl: 1m
+    max_trust_level: 100
+  strict_mode: false           # 严格模式：所有 API 必须带 AAP 令牌
+
+# ============ 链上 ============
+chain:
+  type: mock                   # mock|fisco|polygon|bsc
+  endpoint: ""
+  contract_addr: ""
+  gas_limit: 0
+  confirmation_blocks: 1
+  request_timeout: 10s
+
+# ============ 观测 ============
+telemetry:
+  otel_endpoint: ""            # 空 = 关闭 OTel
+  metrics_addr: ":9090"
+  pprof_addr: ":6060"
+  sample_rate: 0.1
+  traces:
+    enabled: false
+    sampler: "parent"          # parent|always|never|traceidratio
+    ratio: 0.1
+  metrics:
+    enabled: true
+    namespace: agentid
+    subsystem: gateway
+
+# ============ 插件系统 ============
+plugins:
+  enabled: false
+  dir: "./plugins"
+  autoload: true
+  whitelist: []                # 空 = 全部允许
+  # 插件级配置（plugin_name.key = value）
+  config:
+    audit-sink:
+      type: "stdout"
+      flush_interval: 10s
+    metrics-exporter:
+      type: "prometheus"
+      path: "/metrics"
+
+# ============ 服务发现 / 多实例 ============
+discovery:
+  enabled: false
+  backend: "memory"            # memory|consul|etcd|kubernetes
+  refresh_interval: 30s
+  ttl: 60s
+
+# ============ 业务功能开关 ============
+features:
+  batch_register: true
+  audit_log: true
+  aap_handshake: true
+  a2a_negotiation: true
+  prompt_mode: true
+  captcha_challenge: true
+  mcp_server: true

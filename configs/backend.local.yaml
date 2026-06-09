@@ -1,0 +1,93 @@
+# AgentID-Chain backend.yaml — local 模式（纯本地后端，无链上）
+#
+# 用法：agentid serve --config configs/backend.local.yaml
+#
+# 适用场景：开发 / 测试 / demo。无任何区块链节点依赖。
+# 数据：纯 PostgreSQL（无 Redis 也可运行，会降级到 DB 直查）。
+
+service:
+  name: agentid-chain
+  version: 2.0.1
+  role: gateway
+  http_addr: :8080
+  grpc_addr: :8080
+
+log:
+  level: info       # debug|info|warn|error
+  format: json      # json|text
+  source: false
+
+backend:
+  type: local       # local 后端：无链上
+
+storage:
+  db:
+    driver: postgres
+    dsn: postgres://devuser:devpass@localhost:5432/apigateway?sslmode=disable
+    max_open: 25
+    max_idle: 5
+    max_lifetime: 30m
+  redis:
+    addr: localhost:6379
+    password: ""
+    db: 0
+    timeout: 5s
+  outbox:
+    enabled: true
+    stream_key: agentid:outbox
+    max_len: 100000
+    group_name: agentid-outbox
+    block_time: 5s
+  audit:
+    retention_days: 90
+  revocation:
+    backend: redis    # redis|db
+
+authz:
+  ratelimit:
+    enabled: true
+    rps: 100
+    burst: 200
+  ua_intercept:
+    enabled: true
+    blocked_substrings:
+      - "bot/"
+      - "crawler"
+      - "spider"
+  aap:
+    enabled: true
+    challenge_ttl: 30s
+  moltcaptcha:
+    enabled: true
+    challenge_ttl: 60s
+    max_attempts: 3
+  a2a:
+    enabled: true
+    default_ttl: 15m
+    max_trust_level: 100
+  rbac:
+    enabled: true
+
+chain:
+  type: mock        # local 模式下强制 mock chain（无链）
+  endpoint: ""
+  contract_addr: ""
+  gas_limit: 0
+
+aap:
+  domain_key_path: ./keys/aap-domain.pem   # Ed25519 私钥（PEM PKCS#8）
+
+a2a:
+  domain_key_path: ./keys/a2a-domain.pem
+  issuer: agentid-chain
+  key_id: a2a-default
+
+moltcaptcha:
+  hmac_secret: dev-secret-change-me
+  puzzle_difficulty: 3
+
+telemetry:
+  otel_endpoint: ""           # 空 = 关闭 OTel
+  metrics_addr: :9090
+  pprof_addr: :6060
+  sample_rate: 0.1

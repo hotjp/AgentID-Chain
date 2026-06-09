@@ -145,6 +145,9 @@ var promptCmd = promptCmdImpl
 // aapCmd 见 aap_handshake.go。
 var aapCmd = aapCmdImpl
 
+// mcpCmd 见 mcp.go。
+var mcpCmd = mcpCmdImpl
+
 // registerSubcommands 把全部子命令挂到 rootCmd（避免 init() 跨文件顺序问题）。
 func registerSubcommands() {
 	rootCmd.AddCommand(serveCmd)
@@ -161,5 +164,6 @@ func registerSubcommands() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(promptCmd)
 	rootCmd.AddCommand(aapCmd)
+	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(versionCmd)
 }

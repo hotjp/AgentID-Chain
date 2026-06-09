@@ -1,0 +1,48 @@
+# AgentID-Chain captcha.yaml — MoltCaptcha 配置
+#
+# 控制 L3 鉴权层的人类/机器人验证。
+# 流程：challenge → user 解谜 → verify（带 proof）
+#
+# 与 backend.yaml 独立，便于快速调参而不重启服务。
+
+# HMAC 签名密钥（生产用 KMS / Vault；本文件仅 dev 演示）
+hmac_secret: "dev-captcha-secret-change-me-32+bytes"
+
+# 挑战有效期
+challenge_ttl: 60s
+
+# 失败上限（达到后该 IP 临时 ban）
+max_attempts: 3
+
+# 失败后 ban 时长
+ban_duration: 10m
+
+# 谜题难度（每个 challenge 的 hash 难度 bit 数）
+# 数值越大越难（用户耗时增加）
+puzzle_difficulty: 3
+
+# 挑战的字符集（决定可能的解空间）
+puzzle_charset: "abcdefghijkmnpqrstuvwxyz23456789"  # 去除 l/1/o/0
+
+# 谜题长度
+puzzle_length: 6
+
+# 跨节点签名密钥路径（多实例部署时必须共享）
+shared_signing_key_path: ./keys/captcha-hmac.pem
+
+# Rate limit（per-IP）
+ratelimit:
+  enabled: true
+  per_ip_per_minute: 30        # 单 IP 每分钟最多 30 次 challenge 请求
+  per_ip_per_hour: 500         # 单 IP 每小时最多 500 次
+
+# Bot 模式识别（简单启发式）
+heuristics:
+  min_dwell_time_ms: 800       # 提交快于 800ms 视为可疑
+  max_ua_substrings: []        # 接受的 UA 关键词；空 = 全部接受
+  reject_if_ua_contains: ["headless", "phantomjs", "selenium"]
+
+# 验证通过后的 token 格式
+token:
+  prefix: "mc"                 # mc.<base64>
+  payload_format: json         # json|msgpack

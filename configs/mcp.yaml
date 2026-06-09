@@ -1,0 +1,47 @@
+# AgentID-Chain mcp.yaml — MCP（Model Context Protocol）Server 配置
+#
+# 控制 cmd/agentid mcp 子命令的运行参数。
+
+server:
+  name: "agentid-chain"
+  version: "2.0.1"
+  protocol_version: "2024-11-05"
+
+# API Key 鉴权（initialize 时校验；空 = 不校验，仅 dev）
+api_key: ""  # 生产用 KMS / env: AGENTID_MCP_API_KEY
+
+# 后端（直连 vs HTTP gateway）
+backend:
+  type: "local"              # local（直连 core/backend）| http（调远端 gateway）
+  # local 模式参数
+  local:
+    backend_type: "mock"     # local|mock|onchain|hybrid
+  # http 模式参数（仅当 backend.type=http）
+  http:
+    gateway: "http://localhost:8080"
+    api_key: ""
+
+# 工具启用 / 禁用
+tools:
+  agentid_register:        { enabled: true }
+  agentid_get_info:        { enabled: true }
+  agentid_upgrade:         { enabled: true }
+  agentid_check_permission:{ enabled: true }
+  agentid_audit_logs:      { enabled: true }
+  agentid_batch_register:  { enabled: true }
+  agentid_ban:             { enabled: true, min_trust_level: 70 }   # 需调用方 trust >= 70
+  agentid_unban:           { enabled: true, min_trust_level: 70 }
+
+# 传输层
+transport:
+  stdio:
+    buffer_size: 16777216    # 16 MB（防止大 payload 截断）
+  http_sse:                  # P15 阶段启用
+    enabled: false
+    addr: ":8089"
+
+# Logging
+log:
+  level: info
+  format: json
+  audit_calls: true          # 记录每个 tool call 到 audit log

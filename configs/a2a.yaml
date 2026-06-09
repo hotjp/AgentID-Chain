@@ -1,0 +1,66 @@
+# AgentID-Chain a2a.yaml — A2A（Agent-to-Agent）Token 颁发策略
+#
+# 控制 L3 鉴权层的 A2A 颁发参数 + TrustLevel 计算权重。
+# 与 backend.yaml 中的 a2a 段独立（本文件是详细策略）。
+
+# 颁发方
+issuer: "agentid-chain"
+key_id: "a2a-2026-default"
+
+# Domain 私钥（PEM PKCS#8 Ed25519）
+domain_key_path: ./keys/a2a-domain.pem
+
+# 默认 TTL
+default_ttl: 15m
+# 最大 TTL
+max_ttl: 24h
+# 最小 TTL
+min_ttl: 1m
+
+# TrustLevel 计算权重（0-100 输出）
+trust_level:
+  weights:
+    owner_verified:   20    # owner 已通过 KYC
+    agent_level:      30    # 来自 agent level
+    aap_recent:       15    # 最近 1h 内通过 AAP 握手
+    a2a_history:      15    # 过去 A2A 调用成功率
+    audit_clean:      20    # 无 audit 异常
+  thresholds:
+    issue_min: 30            # < 30 拒绝颁发
+    auto_approve: 80         # >= 80 自动通过；< 80 走人工审核
+
+# Scope 协商
+scopes:
+  - "read:tags"
+  - "write:tags"
+  - "read:logs"
+  - "write:logs"
+  - "prompt:invoke"
+  - "prompt:train"
+  - "agent:register"
+  - "agent:upgrade"
+  - "agent:ban"
+  - "agent:unban"
+# 敏感 scope 需要 trust_level >= 80
+sensitive_scopes:
+  - "prompt:train"
+  - "agent:ban"
+
+# JWKS 端点
+jwks:
+  enabled: true
+  path: /.well-known/jwks.json
+  cache_ttl: 5m
+
+# 撤销策略
+revocation:
+  enabled: true
+  storage: redis             # redis|db|memory
+  key_prefix: "a2a:revoked:"
+  max_ttl: 24h
+
+# Audit
+audit:
+  enabled: true
+  store: db
+  retention_days: 90

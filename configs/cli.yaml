@@ -1,0 +1,63 @@
+# AgentID-Chain cli.yaml — CLI 客户端默认配置
+#
+# 位置：~/.agentid/config.yaml
+# 优先级：defaults < 此文件 < env (AGENTID_CLI_*) < flag
+#
+# 此文件控制 `agentid` CLI 的全局行为，与服务端配置相互独立。
+
+# 默认连接后端
+endpoint: "http://localhost:8080"   # local gateway / 远端 gateway
+api_key: ""                         # 远端模式需要
+mode: "auto"                        # auto|local|remote（auto 自动判断）
+timeout: 30s                        # 单次 HTTP 请求超时
+
+# 输出格式
+output:
+  format: "table"                   # table|json|yaml
+  color: "auto"                     # auto|always|never
+  verbose: false                    # 详细输出
+  pretty: true                      # JSON / YAML 美化
+
+# 本地模式（mode=local）相关
+local:
+  data_dir: "~/.agentid/data"       # 本地数据目录（mock backend 用）
+  outbox_dir: "~/.agentid/outbox"   # outbox 文件目录
+  cache_dir: "~/.agentid/cache"     # 缓存目录
+  chain: "mock"                     # mock|fisco|polygon|bsc
+
+# 远端模式（mode=remote）相关
+remote:
+  insecure: false                   # 跳过 TLS 校验（仅 dev）
+  retry:
+    max_attempts: 3
+    backoff: "exponential"          # constant|exponential|linear
+    initial_delay: 500ms
+    max_delay: 10s
+
+# AAP 握手（CLI <-> Gateway）
+aap:
+  enabled: true                     # 是否启用 AAP 握手
+  private_key_path: "~/.agentid/keys/aap-client.pem"
+  key_id: "cli-default"
+  cache_token: true                 # 缓存到 ~/.agentid/aap-token.json
+  cache_ttl: 30m
+
+# Agent 默认值（register / upgrade）
+agent:
+  default_level: 1
+  default_permissions: 0x001        # READ_TAGS
+  default_owner: ""
+
+# Prompt 模式（NL → CLI）
+prompt:
+  enabled: true
+  history_path: "~/.agentid/prompt-history.jsonl"
+  max_history: 100
+  show_classification: true         # 打印识别出的 intent
+  show_slots: true                  # 打印抽取出的 slots
+
+# 调试
+debug:
+  log_level: "warn"                 # debug|info|warn|error
+  dump_request: false               # 打印完整 HTTP 请求
+  dump_response: false              # 打印完整 HTTP 响应

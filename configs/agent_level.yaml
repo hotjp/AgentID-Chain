@@ -1,0 +1,50 @@
+# AgentID-Chain agent_level.yaml — Agent Level / Permission 规则
+#
+# 控制：
+#   - level N 可授予的 permission bitmask 上限
+#   - 升级路径（level N -> N+1 需要的 evidence）
+#   - 升级审计
+#
+# 用法：service / authz 包读这个文件做策略判断；与 backend.yaml 独立。
+
+# Level 1：默认；任何 owner 都能 register
+level_1:
+  description: "新注册 / 默认 Level"
+  registerable_by: [self]              # 谁能注册 level 1
+  permission_max: 0xFF                 # 8 bits（基础）
+  upgrade_to: [2]                      # 可以升级到的 level
+  evidence_required: []                # 升级不需要额外证据
+  review_required: false
+
+# Level 2：标准调用方
+level_2:
+  description: "标准 Agent；可调用大部分 API"
+  registerable_by: [self, admin]       # 自身 + 管理员
+  permission_max: 0xFFF                # 12 bits
+  upgrade_to: [3]
+  evidence_required: [owner_verified]
+  review_required: false
+
+# Level 3：特权 Agent（可调 tag-sense 写入 / 触发 prompt）
+level_3:
+  description: "特权 Agent；需要人工审核"
+  registerable_by: [admin]             # 仅管理员
+  permission_max: 0xFFFFFFFF           # 32 bits
+  upgrade_to: []
+  evidence_required: [owner_verified, kyc_passed, use_case_approved]
+  review_required: true
+
+# Permission 命名空间
+permissions:
+  READ_TAGS:        0x001
+  WRITE_TAGS:       0x002
+  DELETE_TAGS:      0x004
+  READ_LOGS:        0x008
+  WRITE_LOGS:       0x010
+  PROMPT_INVOKE:    0x020
+  PROMPT_TRAIN:     0x040
+  AGENT_REGISTER:   0x080
+  A2A_NEGOTIATE:    0x100
+  A2A_REVOKE:       0x200
+  AAP_CHALLENGE:    0x400
+  AAP_PROOF:        0x800

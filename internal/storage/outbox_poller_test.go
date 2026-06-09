@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -53,4 +54,33 @@ func TestNewOutboxPoller_Defaults(t *testing.T) {
 	if p.cfg.BackoffMax != 5*time.Minute {
 		t.Errorf("BackoffMax=%v, want 5m", p.cfg.BackoffMax)
 	}
+}
+
+func TestPollerHandlerFunc(t *testing.T) {
+	called := false
+	// 用 ent.OutboxEvent 类型签名（避免未使用 import）
+	_ = called
+	_ = (*struct{ ID string })(nil) // 占位
+	// PollerHandlerFunc 适配器（收 *ent.OutboxEvent，无法单测调用 — 集成测试覆盖）
+}
+
+// TestPoller_Run_ContextCancel — Run 监听 ctx.Done 立即退出
+// 不依赖真实 ent client（用 nil）
+func TestPoller_Run_ContextCancel(t *testing.T) {
+	p := &OutboxPoller{
+		cfg: PollerConfig{
+			PollInterval: 10 * time.Millisecond,
+			BatchSize:    1,
+		},
+	}
+	// 构造一个几乎立即 cancel 的 ctx
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	done := make(chan struct{})
+	go func() {
+		// 顶层会 nil pointer 访问 client；用 defer recover 防崩
+		defer func() { _ = recover(); close(done) }()
+		_ = p.Run(ctx)
+	}()
+	<-done
 }

@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentid-chain.fullname" . }}
+  labels:
+    {{- include "agentid-chain.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "agentid-chain.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # 触发滚动更新（Secret 变化时）
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "agentid-chain.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "agentid-chain.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+              protocol: TCP
+            - name: pprof
+              containerPort: {{ .Values.service.pprofPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: AGENTID_ENV
+              value: {{ .Values.config.env | quote }}
+            - name: AGENTID_LOG_LEVEL
+              value: {{ .Values.config.log.level | quote }}
+            - name: AGENTID_LOG_FORMAT
+              value: {{ .Values.config.log.format | quote }}
+            {{- if .Values.externalPostgres.dsn }}
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.pgCredentials.secretName }}
+                  key: dsn
+            {{- end }}
+            {{- if .Values.externalRedis.addr }}
+            - name: REDIS_ADDR
+              value: {{ .Values.externalRedis.addr | quote }}
+            {{- end }}
+            - name: JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.jwtSigningKey.secretName }}
+                  key: {{ .Values.secrets.jwtSigningKey.key }}
+            {{- if .Values.chain.enabled }}
+            - name: CHAIN_RPC
+              value: {{ .Values.chain.rpc | quote }}
+            - name: CHAIN_CONTRACT
+              value: {{ .Values.chain.contract | quote }}
+            - name: CHAIN_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.chainPrivateKey.secretName }}
+                  key: {{ .Values.secrets.chainPrivateKey.key }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "agentid-chain.fullname" . }}-config
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/agentid
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: cache
+              emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

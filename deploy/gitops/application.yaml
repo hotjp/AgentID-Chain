@@ -1,0 +1,63 @@
+# =============================================================================
+# AgentID-Chain — ArgoCD Application (GitOps)
+# =============================================================================
+# 部署方式：
+#   kubectl apply -f deploy/gitops/application.yaml
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agentid-chain
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: agentid-chain
+    app.kubernetes.io/part-of: agentid
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/agentid-chain/agentid-chain
+    targetRevision: HEAD
+    path: deploy/helm/agentid-chain
+    helm:
+      releaseName: agentid-chain
+      valueFiles:
+        - values.yaml
+        - values-production.yaml
+      parameters:
+        - name: replicaCount
+          value: "3"
+        - name: autoscaling.minReplicas
+          value: "3"
+        - name: autoscaling.maxReplicas
+          value: "20"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agentid
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  revisionHistoryLimit: 10
+
+  # 健康检查
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # HPA 管理

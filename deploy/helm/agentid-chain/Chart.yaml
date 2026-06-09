@@ -1,0 +1,30 @@
+apiVersion: v2
+name: agentid-chain
+description: AI Agent distributed identity and permission gateway
+type: application
+version: 2.0.1
+appVersion: "2.0.1"
+home: https://github.com/agentid-chain/agentid-chain
+sources:
+  - https://github.com/agentid-chain/agentid-chain
+keywords:
+  - ai
+  - agent
+  - identity
+  - aap
+  - a2a
+  - mcp
+maintainers:
+  - name: AgentID-Chain Team
+    email: dev@agentid-chain.example.com
+icon: https://raw.githubusercontent.com/agentid-chain/agentid-chain/main/docs/assets/icon.png
+kubeVersion: ">=1.25.0-0"
+dependencies:
+  - name: postgresql
+    version: "13.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "18.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

@@ -1,0 +1,109 @@
+# =============================================================================
+# AgentID-Chain — Production values overlay
+# =============================================================================
+# 与 values.yaml 合并使用
+# 加载顺序：values.yaml < values-production.yaml
+# =============================================================================
+
+replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+  limits:
+    cpu: 4000m
+    memory: 4Gi
+
+# 生产 ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: api.agentid-chain.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - api.agentid-chain.example.com
+      secretName: agentid-tls-prod
+
+# 严格安全
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+      - ALL
+
+# PDB
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# 严格的网络策略
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector:
+    matchLabels:
+      name: ingress-nginx
+
+# 链上（hybrid 模式）
+chain:
+  enabled: true
+  type: polygon
+  rpc: https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}
+  contract: "0x..."
+
+# 监控
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+prometheusRule:
+  enabled: true
+
+# 节点选择
+nodeSelector:
+  workload-class: api
+
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: api
+    effect: NoSchedule
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - agentid-chain
+        topologyKey: kubernetes.io/hostname

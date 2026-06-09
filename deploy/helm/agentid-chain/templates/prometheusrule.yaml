@@ -1,0 +1,33 @@
+{{- if .Values.prometheusRule.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "agentid-chain.fullname" . }}
+  labels:
+    {{- include "agentid-chain.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: agentid-chain.rules
+      rules:
+        - alert: AgentIDChainHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service_name, route) /
+            sum(rate(http_requests_total[5m])) by (service_name, route) > 0.01
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AgentID-Chain 错误率 > 1%"
+            description: "{{ $labels.route }} 错误率 {{ $value | humanizePercentage }}"
+
+        - alert: AgentIDChainServiceDown
+          expr: up{job=~"agentid-.*"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AgentID-Chain 服务不可达"
+{{- end }}

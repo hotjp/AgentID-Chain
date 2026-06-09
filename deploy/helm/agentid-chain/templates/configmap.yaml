@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentid-chain.fullname" . }}-config
+  labels:
+    {{- include "agentid-chain.labels" . | nindent 4 }}
+data:
+  app.yaml: |
+    # 由 Helm 渲染的配置
+    env: {{ .Values.config.env }}
+
+    log:
+      level: {{ .Values.config.log.level }}
+      format: {{ .Values.config.log.format }}
+
+    storage:
+      backend: {{ .Values.config.storage.backend }}
+      {{- if .Values.externalPostgres.dsn }}
+      local:
+        dsn: ${POSTGRES_DSN}
+        max_open: 25
+        max_idle: 10
+        max_lifetime: 5m
+      {{- end }}
+      {{- if .Values.chain.enabled }}
+      chain:
+        type: {{ .Values.chain.type }}
+        rpc: ${CHAIN_RPC}
+        contract: ${CHAIN_CONTRACT}
+        private_key: ${CHAIN_PRIVATE_KEY}
+      {{- end }}
+      {{- if eq .Values.config.storage.backend "hybrid" }}
+      hybrid:
+        read_from: local
+        write_to: local
+        mirror_to: chain
+        worker_interval: 5s
+      {{- end }}
+
+    authz:
+      jwt:
+        algorithm: {{ .Values.config.authz.jwt.algorithm }}
+        signing_key: ${JWT_SIGNING_KEY}
+        issuer: agentid-chain
+        audience: agentid
+      aap:
+        challenge_ttl: {{ .Values.config.aap.challengeTtl }}
+        token_ttl: {{ .Values.config.aap.tokenTtl }}
+
+    cache:
+      redis:
+        addr: ${REDIS_ADDR}
+      ttl:
+        agent: {{ .Values.config.cache.ttl.agent }}
+
+    observability:
+      otel:
+        enabled: true
+        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}

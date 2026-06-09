@@ -1,0 +1,249 @@
+# =============================================================================
+# AgentID-Chain Helm Chart — Default values
+# =============================================================================
+# 大部分字段都有合理默认；生产环境强烈建议覆盖以下字段：
+#   - jwt.signingKey (必须使用 K8s Secret 注入)
+#   - storage.local.dsn (PG 密码)
+#   - storage.chain.privateKey (链上钱包)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 全局
+# -----------------------------------------------------------------------------
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/agentid-chain/agentid-chain/agentid
+  pullPolicy: IfNotPresent
+  tag: ""  # 默认使用 .Chart.AppVersion
+
+imagePullSecrets: []
+global:
+  imageRegistry: ghcr.io
+  imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# 副本与资源
+# -----------------------------------------------------------------------------
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# -----------------------------------------------------------------------------
+# 自动伸缩（HPA）
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# -----------------------------------------------------------------------------
+# Service Account
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# -----------------------------------------------------------------------------
+# Pod 配置
+# -----------------------------------------------------------------------------
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+      - ALL
+
+# -----------------------------------------------------------------------------
+# 探针
+# -----------------------------------------------------------------------------
+livenessProbe:
+  httpGet:
+    path: /live
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# -----------------------------------------------------------------------------
+# 服务
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  httpPort: 8080
+  metricsPort: 9090
+  pprofPort: 6060
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: api.agentid-chain.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - api.agentid-chain.example.com
+      secretName: agentid-tls
+
+# -----------------------------------------------------------------------------
+# 配置
+# -----------------------------------------------------------------------------
+config:
+  env: prod
+  log:
+    level: info
+    format: json
+  storage:
+    backend: hybrid  # local | onchain | hybrid
+  authz:
+    jwt:
+      algorithm: HS256
+  aap:
+    challengeTtl: 60s
+    tokenTtl: 1h
+  cache:
+    ttl:
+      agent: 5m
+
+# 敏感配置（必须用 Secret 覆盖）
+jwt:
+  signingKey: ""  # 注入自 Secret
+
+# -----------------------------------------------------------------------------
+# 依赖服务
+# -----------------------------------------------------------------------------
+postgresql:
+  enabled: false  # 推荐外部 RDS
+  auth:
+    existingSecret: agentid-pg-credentials
+    database: agentid
+
+redis:
+  enabled: false  # 推荐外部 ElastiCache
+  auth:
+    existingSecret: agentid-redis-credentials
+
+# 外部 DSN 覆盖
+externalPostgres:
+  dsn: ""  # postgres://user:pass@host:5432/db?sslmode=disable
+
+externalRedis:
+  addr: ""  # host:6379
+
+# -----------------------------------------------------------------------------
+# 链上
+# -----------------------------------------------------------------------------
+chain:
+  enabled: false  # 仅 hybrid / onchain 模式
+  type: polygon
+  rpc: ""
+  contract: ""
+  privateKey: ""  # 注入自 Secret
+
+# -----------------------------------------------------------------------------
+# 监控
+# -----------------------------------------------------------------------------
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+prometheusRule:
+  enabled: true
+  labels: {}
+
+grafanaDashboard:
+  enabled: true
+  configMapName: agentid-dashboards
+  labels: {}
+
+# -----------------------------------------------------------------------------
+# PodDisruptionBudget
+# -----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# -----------------------------------------------------------------------------
+# NetworkPolicy
+# -----------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector: {}
+
+# -----------------------------------------------------------------------------
+# 节点选择
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - agentid-chain
+          topologyKey: kubernetes.io/hostname
+
+# -----------------------------------------------------------------------------
+# 密钥引用
+# -----------------------------------------------------------------------------
+secrets:
+  jwtSigningKey:
+    secretName: agentid-jwt
+    key: signing-key
+  pgCredentials:
+    secretName: agentid-pg-credentials
+    keys:
+      username: username
+      password: password
+      database: database
+  redisCredentials:
+    secretName: agentid-redis-credentials
+    keys:
+      password: password
+  chainPrivateKey:
+    secretName: agentid-chain
+    key: private-key

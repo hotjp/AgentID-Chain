@@ -1,0 +1,100 @@
+# =============================================================================
+# AgentID-Chain — commitlint 配置 (P16.10)
+# =============================================================================
+# 规范：Conventional Commits
+#   <type>(<scope>): <subject>
+#
+# type: feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert
+# scope: cli|gateway|authz|storage|chain|config|docker|ci|docs|test|...
+# subject: 中文 1-50 字；无大写开头（除专有名词）；无句末标点
+#
+# 安装：npm install --save-dev @commitlint/{config-conventional,cli} husky
+# 激活：npx husky add .husky/commit-msg 'npx --no-install commitlint --edit "$1"'
+# =============================================================================
+
+extends:
+  - "@commitlint/config-conventional"
+
+rules:
+  # type 必须为以下之一
+  type-enum:
+    - 2
+    - always
+    - [
+        "feat",     # 新功能
+        "fix",      # bug 修复
+        "docs",     # 文档
+        "style",    # 代码格式（不影响逻辑）
+        "refactor", # 重构（既不是 feat 也不是 fix）
+        "perf",     # 性能优化
+        "test",     # 测试
+        "build",    # 构建系统 / 依赖
+        "ci",       # CI 配置
+        "chore",    # 杂项（不修改 src/test）
+        "revert",   # 回滚
+      ]
+
+  # scope 必须为以下之一（可拓展）
+  scope-enum:
+    - 1
+    - always
+    - [
+        "cli",         # CLI
+        "gateway",     # 网关
+        "authz",       # L3 鉴权
+        "storage",     # L1 存储
+        "chain",       # 链上
+        "config",      # 配置
+        "docker",      # Docker / 部署
+        "ci",          # CI/CD
+        "docs",        # 文档
+        "test",        # 测试基础设施
+        "perf",        # 性能
+        "security",    # 安全
+        "core",        # 核心模块
+        "deps",        # 依赖
+      ]
+
+  # subject 长度
+  subject-max-length:
+    - 2
+    - always
+    - 72
+
+  subject-min-length:
+    - 2
+    - always
+    - 4
+
+  # subject 不允许句末标点
+  subject-full-stop:
+    - 2
+    - always
+    - "."
+
+  # subject 首字母小写（除专有名词如 Ed25519、Go、PostgreSQL）
+  subject-case:
+    - 2
+    - always
+    - "lower-case"
+
+  # header 总长度
+  header-max-length:
+    - 2
+    - always
+    - 100
+
+  # body 与 footer
+  body-leading-blank:
+    - 2
+    - always
+
+  footer-leading-blank:
+    - 2
+    - always
+
+# 允许 merge / revert 等自动产生的 commit
+ignores:
+  - "Merge.*"
+  - "Revert.*"
+  - "chore\\(release\\): .*"

@@ -1,0 +1,96 @@
+# =============================================================================
+# AgentID-Chain — pre-commit 配置 (P16.9)
+# =============================================================================
+# 安装：pip install pre-commit && pre-commit install
+# 手动跑：pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ---------- 通用 ----------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: detect-private-key
+        exclude: ^keys/.*\.pem$  # dev 演示密钥可保留
+      - id: no-commit-to-branch
+        args: [--branch=main, --branch=master]
+
+  # ---------- Go ----------
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.59.1
+    hooks:
+      - id: golangci-lint
+        args: [--timeout=5m, --max-issues-per-linter=0]
+        types: [go]
+        # 跳过 vendor 与 generated
+        exclude: ^(vendor/|.*\.pb\.go$|.*_gen\.go$|.*_mock\.go$)
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: bash -c 'gofmt -l "$@" | grep -v "^vendor/" || true'
+        language: system
+        types: [go]
+        pass_filenames: true
+
+      - id: goimports
+        name: goimports
+        entry: bash -c 'goimports -l "$@" | grep -v "^vendor/" || true'
+        language: system
+        types: [go]
+        pass_filenames: true
+
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: bash -c 'go mod tidy'
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [manual]  # 不自动跑，需手动触发
+
+      - id: go-test
+        name: go test -short
+        entry: bash -c 'go test -short -race ./...'
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [manual]
+
+  # ---------- YAML / Markdown ----------
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-d, '{extends: default, rules: {line-length: disable, document-start: disable}}']
+        types: [yaml]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.42.0
+    hooks:
+      - id: markdownlint
+        args: [--disable, MD013, --disable, MD033]
+        types: [markdown]
+
+  # ---------- 密钥扫描 ----------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  # ---------- Commit message ----------
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []

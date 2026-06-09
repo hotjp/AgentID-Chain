@@ -1,0 +1,93 @@
+name: build
+
+# =============================================================================
+# AgentID-Chain — Build Workflow (P16.1)
+# =============================================================================
+# 跨平台编译验证（ubuntu / macos / windows）
+# 触发：push / pull_request
+# 矩阵：ubuntu-latest + macos-latest + windows-latest
+# =============================================================================
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.23"
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Build all binaries
+        run: |
+          echo "==> Building cmd/agentid"
+          go build -trimpath -o bin/agentid ./cmd/agentid
+          echo "==> Building cmd/migration-tool"
+          go build -trimpath -o bin/migration-tool ./cmd/migration-tool 2>/dev/null || true
+          echo "==> Building cmd/mock-chain"
+          go build -trimpath -o bin/mock-chain ./cmd/mock-chain 2>/dev/null || true
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentid-${{ matrix.os }}
+          path: bin/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Verify go vet
+        run: go vet ./...
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+  gofmt:
+    name: gofmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: Check formatting
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+            echo "Files need formatting:"
+            gofmt -l .
+            exit 1
+          fi

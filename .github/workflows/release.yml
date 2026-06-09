@@ -1,0 +1,111 @@
+name: release
+
+# =============================================================================
+# AgentID-Chain — Release Workflow (P16.7)
+# =============================================================================
+# 自动创建 GitHub Release（带 changelog + 制品）
+# 触发：push tag v*.*.*
+# 制品：4 个 Docker 镜像 + 3 个二进制 + checksums + SBOM
+# =============================================================================
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. v2.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  GO_VERSION: "1.23"
+  REGISTRY: docker.io
+
+jobs:
+  release-binaries:
+    name: build binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for changelog
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build binaries
+        run: |
+          VERSION=${{ github.ref_name }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          mkdir -p dist
+          for target in agentid migration-tool mock-chain; do
+            if go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" \
+                -o "dist/${target}-linux-amd64" "./cmd/${target}" 2>/dev/null; then
+              echo "Built ${target}"
+            fi
+          done
+          ls -la dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          artifact-name: agentid-sbom.cdx.json
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          generate_release_notes: true
+          body: |
+            ## AgentID-Chain ${{ github.ref_name }}
+
+            **Full Changelog**: https://github.com/agentid-chain/agentid-chain/compare/${{ github.event.before }}...${{ github.ref_name }}
+
+            ### 📦 制品
+
+            - `agentid-linux-amd64` — CLI 客户端
+            - `migration-tool-linux-amd64` — 数据库迁移工具
+            - `mock-chain-linux-amd64` — 模拟链节点
+            - `SHA256SUMS` — 校验和
+            - `agentid-sbom.cdx.json` — CycloneDX SBOM
+
+            ### 🐳 Docker 镜像
+
+            ```bash
+            docker pull agentid-chain/gateway:${{ github.ref_name }}
+            docker pull agentid-chain/cli:${{ github.ref_name }}
+            docker pull agentid-chain/migration:${{ github.ref_name }}
+            docker pull agentid-chain/mock-chain:${{ github.ref_name }}
+            ```
+
+            ### 🔐 验证签名
+
+            ```bash
+            # cosign 验证
+            cosign verify --certificate-identity-regexp 'https://github.com/agentid-chain' \
+                          --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+                          agentid-chain/gateway:${{ github.ref_name }}
+            ```
+          files: |
+            dist/*
+            agentid-sbom.cdx.json

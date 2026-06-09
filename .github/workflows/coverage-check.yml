@@ -1,0 +1,88 @@
+name: coverage-check
+
+# =============================================================================
+# AgentID-Chain — Coverage Check Workflow (P16.4)
+# =============================================================================
+# 覆盖率门槛检查（独立 workflow）
+# 失败 → 阻断 PR 合并
+# 上传 badge 到 README
+# =============================================================================
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: "1.23"
+  COVERAGE_MIN: "70"
+
+jobs:
+  coverage:
+    name: coverage check ≥ ${{ env.COVERAGE_MIN }}%
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Generate coverage profile
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Total coverage
+        run: |
+          TOTAL=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          echo "总覆盖率: $TOTAL%"
+          echo "COVERAGE_TOTAL=$TOTAL" >> $GITHUB_ENV
+
+      - name: Fail if below threshold
+        run: |
+          awk -v t=$COVERAGE_TOTAL -v m=${{ env.COVERAGE_MIN }} 'BEGIN {
+            if (t+0 < m+0) {
+              printf "❌ 覆盖率 %.1f%% < %s%%\n", t, m
+              exit 1
+            }
+            printf "✅ 覆盖率 %.1f%% >= %s%%\n", t, m
+          }'
+
+      - name: Per-package coverage (informational)
+        if: always()
+        run: go test -cover ./... 2>&1 | grep -E "^ok" | awk '{printf "| %s | %s |\n", $2, $3}'
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage.out
+          retention-days: 30
+
+  coverage-trend:
+    name: coverage trend comment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: coverage
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage/
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          message: |
+            ## 📊 Coverage Report
+
+            | Metric | Value |
+            |--------|-------|
+            | Total | ${{ env.COVERAGE_TOTAL }}% |
+            | Threshold | ${{ env.COVERAGE_MIN }}% |
+            | Status | ${{ job.coverage.result }} |
+
+            See full report in workflow artifacts.

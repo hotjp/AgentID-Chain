@@ -1,0 +1,70 @@
+name: docker-build
+
+# =============================================================================
+# AgentID-Chain — Docker Build Workflow (P16.5)
+# =============================================================================
+# 验证 Docker 构建（不推送），用于 PR 检查
+# 触发：pull_request + push to develop
+# =============================================================================
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gateway
+            dockerfile: docker/Dockerfile.gateway
+          - name: cli
+            dockerfile: docker/Dockerfile.cli
+          - name: migration
+            dockerfile: docker/Dockerfile.migration
+          - name: mock-chain
+            dockerfile: docker/Dockerfile.mock-chain
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: agentid-chain/${{ matrix.name }}:ci-${{ github.sha }}
+          build-args: |
+            VERSION=ci-${{ github.sha }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image size check (< 80MB)
+        run: |
+          SIZE=$(docker image inspect agentid-chain/${{ matrix.name }}:ci-${{ github.sha }} --format='{{.Size}}')
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          echo "${{ matrix.name }} size: ${SIZE_MB}MB"
+          if [ "$SIZE_MB" -gt 80 ]; then
+            echo "❌ Image ${{ matrix.name }} too large: ${SIZE_MB}MB (limit 80MB)"
+            exit 1
+          fi
+          echo "✅ Size OK"

@@ -1,0 +1,46 @@
+# =============================================================================
+# AgentID-Chain — CODEOWNERS (P16.12)
+# =============================================================================
+# GitHub 自动分配 reviewer 规则
+# 格式：<pattern>  <owner1>  <owner2>
+# 顺序：后面的覆盖前面的
+# =============================================================================
+
+# ---------- 默认（全部） ----------
+*  @agentid-chain/core-team
+
+# ---------- 安全敏感（必须 2 人 review） ----------
+/internal/authz/        @agentid-chain/security-team
+/internal/authz/aap/    @agentid-chain/security-team
+/internal/authz/a2a/    @agentid-chain/security-team
+/internal/authz/moltcaptcha/  @agentid-chain/security-team
+/configs/a2a.yaml       @agentid-chain/security-team
+/configs/captcha.yaml   @agentid-chain/security-team
+/keys/                  @agentid-chain/security-team
+/.github/workflows/security.yml  @agentid-chain/security-team
+
+# ---------- 链上（chain 适配） ----------
+/core/chain_adapter/    @agentid-chain/chain-team
+/core/backend/onchain/  @agentid-chain/chain-team
+/core/backend/hybrid/   @agentid-chain/chain-team
+
+# ---------- Docker / 部署 ----------
+/docker/                @agentid-chain/platform-team
+/.github/workflows/docker-push.yml  @agentid-chain/platform-team
+/.github/workflows/docker-build.yml  @agentid-chain/platform-team
+/.github/workflows/release.yml  @agentid-chain/platform-team
+
+# ---------- 配置 / CLI ----------
+/configs/               @agentid-chain/core-team
+/internal/config/       @agentid-chain/core-team
+/cmd/agentid/           @agentid-chain/cli-team
+/internal/cli/          @agentid-chain/cli-team
+
+# ---------- 数据库迁移（破坏性变更） ----------
+/cmd/migration-tool/    @agentid-chain/storage-team
+/internal/storage/migrations/  @agentid-chain/storage-team
+/ent/schema/            @agentid-chain/storage-team
+
+# ---------- 文档（任何人都可改） ----------
+/docs/                  @agentid-chain/docs-team
+*.md                    @agentid-chain/docs-team

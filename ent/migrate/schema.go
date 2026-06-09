@@ -59,6 +59,38 @@ var (
 			},
 		},
 	}
+	// OutboxEventsColumns holds the columns for the "outbox_events" table.
+	OutboxEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "aggregate_type", Type: field.TypeString, Size: 64},
+		{Name: "aggregate_id", Type: field.TypeString, Size: 64},
+		{Name: "event_type", Type: field.TypeString, Size: 128},
+		{Name: "payload", Type: field.TypeJSON},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "idempotency_key", Type: field.TypeString, Unique: true, Size: 128},
+		{Name: "status", Type: field.TypeUint8, Default: 0},
+		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "next_retry_at", Type: field.TypeTime},
+	}
+	// OutboxEventsTable holds the schema information for the "outbox_events" table.
+	OutboxEventsTable = &schema.Table{
+		Name:       "outbox_events",
+		Columns:    OutboxEventsColumns,
+		PrimaryKey: []*schema.Column{OutboxEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idx_outbox_pending",
+				Unique:  false,
+				Columns: []*schema.Column{OutboxEventsColumns[7], OutboxEventsColumns[10]},
+			},
+			{
+				Name:    "idx_outbox_aggregate",
+				Unique:  false,
+				Columns: []*schema.Column{OutboxEventsColumns[1], OutboxEventsColumns[2]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -77,6 +109,7 @@ var (
 	Tables = []*schema.Table{
 		AgentsTable,
 		AuditLogsTable,
+		OutboxEventsTable,
 		UsersTable,
 	}
 )

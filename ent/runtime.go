@@ -7,6 +7,7 @@ import (
 
 	"github.com/agentid-chain/agentid-chain/ent/agent"
 	"github.com/agentid-chain/agentid-chain/ent/auditlog"
+	"github.com/agentid-chain/agentid-chain/ent/outboxevent"
 	"github.com/agentid-chain/agentid-chain/ent/schema"
 	"github.com/agentid-chain/agentid-chain/ent/user"
 	"github.com/google/uuid"
@@ -116,6 +117,106 @@ func init() {
 	auditlogDescID := auditlogFields[0].Descriptor()
 	// auditlog.DefaultID holds the default value on creation for the id field.
 	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
+	outboxeventFields := schema.OutboxEvent{}.Fields()
+	_ = outboxeventFields
+	// outboxeventDescAggregateType is the schema descriptor for aggregate_type field.
+	outboxeventDescAggregateType := outboxeventFields[1].Descriptor()
+	// outboxevent.AggregateTypeValidator is a validator for the "aggregate_type" field. It is called by the builders before save.
+	outboxevent.AggregateTypeValidator = func() func(string) error {
+		validators := outboxeventDescAggregateType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(aggregate_type string) error {
+			for _, fn := range fns {
+				if err := fn(aggregate_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// outboxeventDescAggregateID is the schema descriptor for aggregate_id field.
+	outboxeventDescAggregateID := outboxeventFields[2].Descriptor()
+	// outboxevent.AggregateIDValidator is a validator for the "aggregate_id" field. It is called by the builders before save.
+	outboxevent.AggregateIDValidator = func() func(string) error {
+		validators := outboxeventDescAggregateID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(aggregate_id string) error {
+			for _, fn := range fns {
+				if err := fn(aggregate_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// outboxeventDescEventType is the schema descriptor for event_type field.
+	outboxeventDescEventType := outboxeventFields[3].Descriptor()
+	// outboxevent.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
+	outboxevent.EventTypeValidator = func() func(string) error {
+		validators := outboxeventDescEventType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(event_type string) error {
+			for _, fn := range fns {
+				if err := fn(event_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// outboxeventDescOccurredAt is the schema descriptor for occurred_at field.
+	outboxeventDescOccurredAt := outboxeventFields[5].Descriptor()
+	// outboxevent.DefaultOccurredAt holds the default value on creation for the occurred_at field.
+	outboxevent.DefaultOccurredAt = outboxeventDescOccurredAt.Default.(func() time.Time)
+	// outboxeventDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	outboxeventDescIdempotencyKey := outboxeventFields[6].Descriptor()
+	// outboxevent.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	outboxevent.IdempotencyKeyValidator = func() func(string) error {
+		validators := outboxeventDescIdempotencyKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(idempotency_key string) error {
+			for _, fn := range fns {
+				if err := fn(idempotency_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// outboxeventDescStatus is the schema descriptor for status field.
+	outboxeventDescStatus := outboxeventFields[7].Descriptor()
+	// outboxevent.DefaultStatus holds the default value on creation for the status field.
+	outboxevent.DefaultStatus = outboxeventDescStatus.Default.(uint8)
+	// outboxevent.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	outboxevent.StatusValidator = outboxeventDescStatus.Validators[0].(func(uint8) error)
+	// outboxeventDescRetryCount is the schema descriptor for retry_count field.
+	outboxeventDescRetryCount := outboxeventFields[8].Descriptor()
+	// outboxevent.DefaultRetryCount holds the default value on creation for the retry_count field.
+	outboxevent.DefaultRetryCount = outboxeventDescRetryCount.Default.(int)
+	// outboxeventDescLastError is the schema descriptor for last_error field.
+	outboxeventDescLastError := outboxeventFields[9].Descriptor()
+	// outboxevent.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	outboxevent.LastErrorValidator = outboxeventDescLastError.Validators[0].(func(string) error)
+	// outboxeventDescNextRetryAt is the schema descriptor for next_retry_at field.
+	outboxeventDescNextRetryAt := outboxeventFields[10].Descriptor()
+	// outboxevent.DefaultNextRetryAt holds the default value on creation for the next_retry_at field.
+	outboxevent.DefaultNextRetryAt = outboxeventDescNextRetryAt.Default.(func() time.Time)
+	// outboxeventDescID is the schema descriptor for id field.
+	outboxeventDescID := outboxeventFields[0].Descriptor()
+	// outboxevent.DefaultID holds the default value on creation for the id field.
+	outboxevent.DefaultID = outboxeventDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescEmail is the schema descriptor for email field.

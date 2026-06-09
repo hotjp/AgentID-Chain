@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/agentid-chain/agentid-chain/ent/agent"
 	"github.com/agentid-chain/agentid-chain/ent/auditlog"
+	"github.com/agentid-chain/agentid-chain/ent/outboxevent"
 	"github.com/agentid-chain/agentid-chain/ent/predicate"
 	"github.com/agentid-chain/agentid-chain/ent/user"
 	"github.com/google/uuid"
@@ -27,9 +28,10 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAgent    = "Agent"
-	TypeAuditLog = "AuditLog"
-	TypeUser     = "User"
+	TypeAgent       = "Agent"
+	TypeAuditLog    = "AuditLog"
+	TypeOutboxEvent = "OutboxEvent"
+	TypeUser        = "User"
 )
 
 // AgentMutation represents an operation that mutates the Agent nodes in the graph.
@@ -1410,6 +1412,915 @@ func (m *AuditLogMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AuditLog edge %s", name)
+}
+
+// OutboxEventMutation represents an operation that mutates the OutboxEvent nodes in the graph.
+type OutboxEventMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	aggregate_type  *string
+	aggregate_id    *string
+	event_type      *string
+	payload         *map[string]interface{}
+	occurred_at     *time.Time
+	idempotency_key *string
+	status          *uint8
+	addstatus       *int8
+	retry_count     *int
+	addretry_count  *int
+	last_error      *string
+	next_retry_at   *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*OutboxEvent, error)
+	predicates      []predicate.OutboxEvent
+}
+
+var _ ent.Mutation = (*OutboxEventMutation)(nil)
+
+// outboxeventOption allows management of the mutation configuration using functional options.
+type outboxeventOption func(*OutboxEventMutation)
+
+// newOutboxEventMutation creates new mutation for the OutboxEvent entity.
+func newOutboxEventMutation(c config, op Op, opts ...outboxeventOption) *OutboxEventMutation {
+	m := &OutboxEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeOutboxEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withOutboxEventID sets the ID field of the mutation.
+func withOutboxEventID(id uuid.UUID) outboxeventOption {
+	return func(m *OutboxEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *OutboxEvent
+		)
+		m.oldValue = func(ctx context.Context) (*OutboxEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().OutboxEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withOutboxEvent sets the old OutboxEvent of the mutation.
+func withOutboxEvent(node *OutboxEvent) outboxeventOption {
+	return func(m *OutboxEventMutation) {
+		m.oldValue = func(context.Context) (*OutboxEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m OutboxEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m OutboxEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of OutboxEvent entities.
+func (m *OutboxEventMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *OutboxEventMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *OutboxEventMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().OutboxEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAggregateType sets the "aggregate_type" field.
+func (m *OutboxEventMutation) SetAggregateType(s string) {
+	m.aggregate_type = &s
+}
+
+// AggregateType returns the value of the "aggregate_type" field in the mutation.
+func (m *OutboxEventMutation) AggregateType() (r string, exists bool) {
+	v := m.aggregate_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateType returns the old "aggregate_type" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldAggregateType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateType: %w", err)
+	}
+	return oldValue.AggregateType, nil
+}
+
+// ResetAggregateType resets all changes to the "aggregate_type" field.
+func (m *OutboxEventMutation) ResetAggregateType() {
+	m.aggregate_type = nil
+}
+
+// SetAggregateID sets the "aggregate_id" field.
+func (m *OutboxEventMutation) SetAggregateID(s string) {
+	m.aggregate_id = &s
+}
+
+// AggregateID returns the value of the "aggregate_id" field in the mutation.
+func (m *OutboxEventMutation) AggregateID() (r string, exists bool) {
+	v := m.aggregate_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateID returns the old "aggregate_id" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldAggregateID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateID: %w", err)
+	}
+	return oldValue.AggregateID, nil
+}
+
+// ResetAggregateID resets all changes to the "aggregate_id" field.
+func (m *OutboxEventMutation) ResetAggregateID() {
+	m.aggregate_id = nil
+}
+
+// SetEventType sets the "event_type" field.
+func (m *OutboxEventMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *OutboxEventMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *OutboxEventMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetPayload sets the "payload" field.
+func (m *OutboxEventMutation) SetPayload(value map[string]interface{}) {
+	m.payload = &value
+}
+
+// Payload returns the value of the "payload" field in the mutation.
+func (m *OutboxEventMutation) Payload() (r map[string]interface{}, exists bool) {
+	v := m.payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayload returns the old "payload" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldPayload(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayload: %w", err)
+	}
+	return oldValue.Payload, nil
+}
+
+// ResetPayload resets all changes to the "payload" field.
+func (m *OutboxEventMutation) ResetPayload() {
+	m.payload = nil
+}
+
+// SetOccurredAt sets the "occurred_at" field.
+func (m *OutboxEventMutation) SetOccurredAt(t time.Time) {
+	m.occurred_at = &t
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *OutboxEventMutation) OccurredAt() (r time.Time, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldOccurredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *OutboxEventMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+}
+
+// SetIdempotencyKey sets the "idempotency_key" field.
+func (m *OutboxEventMutation) SetIdempotencyKey(s string) {
+	m.idempotency_key = &s
+}
+
+// IdempotencyKey returns the value of the "idempotency_key" field in the mutation.
+func (m *OutboxEventMutation) IdempotencyKey() (r string, exists bool) {
+	v := m.idempotency_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKey returns the old "idempotency_key" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldIdempotencyKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKey: %w", err)
+	}
+	return oldValue.IdempotencyKey, nil
+}
+
+// ResetIdempotencyKey resets all changes to the "idempotency_key" field.
+func (m *OutboxEventMutation) ResetIdempotencyKey() {
+	m.idempotency_key = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *OutboxEventMutation) SetStatus(u uint8) {
+	m.status = &u
+	m.addstatus = nil
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *OutboxEventMutation) Status() (r uint8, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldStatus(ctx context.Context) (v uint8, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// AddStatus adds u to the "status" field.
+func (m *OutboxEventMutation) AddStatus(u int8) {
+	if m.addstatus != nil {
+		*m.addstatus += u
+	} else {
+		m.addstatus = &u
+	}
+}
+
+// AddedStatus returns the value that was added to the "status" field in this mutation.
+func (m *OutboxEventMutation) AddedStatus() (r int8, exists bool) {
+	v := m.addstatus
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *OutboxEventMutation) ResetStatus() {
+	m.status = nil
+	m.addstatus = nil
+}
+
+// SetRetryCount sets the "retry_count" field.
+func (m *OutboxEventMutation) SetRetryCount(i int) {
+	m.retry_count = &i
+	m.addretry_count = nil
+}
+
+// RetryCount returns the value of the "retry_count" field in the mutation.
+func (m *OutboxEventMutation) RetryCount() (r int, exists bool) {
+	v := m.retry_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetryCount returns the old "retry_count" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldRetryCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetryCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetryCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetryCount: %w", err)
+	}
+	return oldValue.RetryCount, nil
+}
+
+// AddRetryCount adds i to the "retry_count" field.
+func (m *OutboxEventMutation) AddRetryCount(i int) {
+	if m.addretry_count != nil {
+		*m.addretry_count += i
+	} else {
+		m.addretry_count = &i
+	}
+}
+
+// AddedRetryCount returns the value that was added to the "retry_count" field in this mutation.
+func (m *OutboxEventMutation) AddedRetryCount() (r int, exists bool) {
+	v := m.addretry_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRetryCount resets all changes to the "retry_count" field.
+func (m *OutboxEventMutation) ResetRetryCount() {
+	m.retry_count = nil
+	m.addretry_count = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *OutboxEventMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *OutboxEventMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *OutboxEventMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[outboxevent.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *OutboxEventMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[outboxevent.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *OutboxEventMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, outboxevent.FieldLastError)
+}
+
+// SetNextRetryAt sets the "next_retry_at" field.
+func (m *OutboxEventMutation) SetNextRetryAt(t time.Time) {
+	m.next_retry_at = &t
+}
+
+// NextRetryAt returns the value of the "next_retry_at" field in the mutation.
+func (m *OutboxEventMutation) NextRetryAt() (r time.Time, exists bool) {
+	v := m.next_retry_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextRetryAt returns the old "next_retry_at" field's value of the OutboxEvent entity.
+// If the OutboxEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OutboxEventMutation) OldNextRetryAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextRetryAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextRetryAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextRetryAt: %w", err)
+	}
+	return oldValue.NextRetryAt, nil
+}
+
+// ResetNextRetryAt resets all changes to the "next_retry_at" field.
+func (m *OutboxEventMutation) ResetNextRetryAt() {
+	m.next_retry_at = nil
+}
+
+// Where appends a list predicates to the OutboxEventMutation builder.
+func (m *OutboxEventMutation) Where(ps ...predicate.OutboxEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the OutboxEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *OutboxEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.OutboxEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *OutboxEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *OutboxEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (OutboxEvent).
+func (m *OutboxEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *OutboxEventMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.aggregate_type != nil {
+		fields = append(fields, outboxevent.FieldAggregateType)
+	}
+	if m.aggregate_id != nil {
+		fields = append(fields, outboxevent.FieldAggregateID)
+	}
+	if m.event_type != nil {
+		fields = append(fields, outboxevent.FieldEventType)
+	}
+	if m.payload != nil {
+		fields = append(fields, outboxevent.FieldPayload)
+	}
+	if m.occurred_at != nil {
+		fields = append(fields, outboxevent.FieldOccurredAt)
+	}
+	if m.idempotency_key != nil {
+		fields = append(fields, outboxevent.FieldIdempotencyKey)
+	}
+	if m.status != nil {
+		fields = append(fields, outboxevent.FieldStatus)
+	}
+	if m.retry_count != nil {
+		fields = append(fields, outboxevent.FieldRetryCount)
+	}
+	if m.last_error != nil {
+		fields = append(fields, outboxevent.FieldLastError)
+	}
+	if m.next_retry_at != nil {
+		fields = append(fields, outboxevent.FieldNextRetryAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *OutboxEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case outboxevent.FieldAggregateType:
+		return m.AggregateType()
+	case outboxevent.FieldAggregateID:
+		return m.AggregateID()
+	case outboxevent.FieldEventType:
+		return m.EventType()
+	case outboxevent.FieldPayload:
+		return m.Payload()
+	case outboxevent.FieldOccurredAt:
+		return m.OccurredAt()
+	case outboxevent.FieldIdempotencyKey:
+		return m.IdempotencyKey()
+	case outboxevent.FieldStatus:
+		return m.Status()
+	case outboxevent.FieldRetryCount:
+		return m.RetryCount()
+	case outboxevent.FieldLastError:
+		return m.LastError()
+	case outboxevent.FieldNextRetryAt:
+		return m.NextRetryAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *OutboxEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case outboxevent.FieldAggregateType:
+		return m.OldAggregateType(ctx)
+	case outboxevent.FieldAggregateID:
+		return m.OldAggregateID(ctx)
+	case outboxevent.FieldEventType:
+		return m.OldEventType(ctx)
+	case outboxevent.FieldPayload:
+		return m.OldPayload(ctx)
+	case outboxevent.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	case outboxevent.FieldIdempotencyKey:
+		return m.OldIdempotencyKey(ctx)
+	case outboxevent.FieldStatus:
+		return m.OldStatus(ctx)
+	case outboxevent.FieldRetryCount:
+		return m.OldRetryCount(ctx)
+	case outboxevent.FieldLastError:
+		return m.OldLastError(ctx)
+	case outboxevent.FieldNextRetryAt:
+		return m.OldNextRetryAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown OutboxEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OutboxEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case outboxevent.FieldAggregateType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateType(v)
+		return nil
+	case outboxevent.FieldAggregateID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateID(v)
+		return nil
+	case outboxevent.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case outboxevent.FieldPayload:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayload(v)
+		return nil
+	case outboxevent.FieldOccurredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	case outboxevent.FieldIdempotencyKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKey(v)
+		return nil
+	case outboxevent.FieldStatus:
+		v, ok := value.(uint8)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case outboxevent.FieldRetryCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetryCount(v)
+		return nil
+	case outboxevent.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case outboxevent.FieldNextRetryAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextRetryAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown OutboxEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *OutboxEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addstatus != nil {
+		fields = append(fields, outboxevent.FieldStatus)
+	}
+	if m.addretry_count != nil {
+		fields = append(fields, outboxevent.FieldRetryCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *OutboxEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case outboxevent.FieldStatus:
+		return m.AddedStatus()
+	case outboxevent.FieldRetryCount:
+		return m.AddedRetryCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *OutboxEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case outboxevent.FieldStatus:
+		v, ok := value.(int8)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatus(v)
+		return nil
+	case outboxevent.FieldRetryCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRetryCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown OutboxEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *OutboxEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(outboxevent.FieldLastError) {
+		fields = append(fields, outboxevent.FieldLastError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *OutboxEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *OutboxEventMutation) ClearField(name string) error {
+	switch name {
+	case outboxevent.FieldLastError:
+		m.ClearLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown OutboxEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *OutboxEventMutation) ResetField(name string) error {
+	switch name {
+	case outboxevent.FieldAggregateType:
+		m.ResetAggregateType()
+		return nil
+	case outboxevent.FieldAggregateID:
+		m.ResetAggregateID()
+		return nil
+	case outboxevent.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case outboxevent.FieldPayload:
+		m.ResetPayload()
+		return nil
+	case outboxevent.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	case outboxevent.FieldIdempotencyKey:
+		m.ResetIdempotencyKey()
+		return nil
+	case outboxevent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case outboxevent.FieldRetryCount:
+		m.ResetRetryCount()
+		return nil
+	case outboxevent.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case outboxevent.FieldNextRetryAt:
+		m.ResetNextRetryAt()
+		return nil
+	}
+	return fmt.Errorf("unknown OutboxEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *OutboxEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *OutboxEventMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *OutboxEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *OutboxEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *OutboxEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *OutboxEventMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *OutboxEventMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown OutboxEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *OutboxEventMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown OutboxEvent edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.

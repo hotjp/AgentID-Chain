@@ -16,6 +16,8 @@ type Tx struct {
 	Agent *AgentClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// OutboxEvent is the client for interacting with the OutboxEvent builders.
+	OutboxEvent *OutboxEventClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -151,6 +153,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Agent = NewAgentClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.OutboxEvent = NewOutboxEventClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

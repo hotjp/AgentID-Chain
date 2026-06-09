@@ -12,5 +12,8 @@ type Agent func(*sql.Selector)
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
+// OutboxEvent is the predicate function for outboxevent builders.
+type OutboxEvent func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

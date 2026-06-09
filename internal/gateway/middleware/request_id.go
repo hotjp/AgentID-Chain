@@ -37,6 +37,9 @@ func RequestID() HandlerFunc {
 
 // RequestIDFromContext 从 ctx 取 RequestID。
 func RequestIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	if v, ok := ctx.Value(ContextKeyRequestID).(string); ok {
 		return v
 	}

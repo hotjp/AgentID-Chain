@@ -35,8 +35,21 @@ func DefaultCORSConfig() CORSConfig {
 
 // CORS 返回 CORS 中间件。
 func CORS(cfg CORSConfig) HandlerFunc {
+	defaults := DefaultCORSConfig()
 	if cfg.AllowOrigins == "" {
-		cfg = DefaultCORSConfig()
+		cfg.AllowOrigins = defaults.AllowOrigins
+	}
+	if cfg.AllowMethods == "" {
+		cfg.AllowMethods = defaults.AllowMethods
+	}
+	if cfg.AllowHeaders == "" {
+		cfg.AllowHeaders = defaults.AllowHeaders
+	}
+	if cfg.ExposeHeaders == "" {
+		cfg.ExposeHeaders = defaults.ExposeHeaders
+	}
+	if cfg.MaxAge == 0 {
+		cfg.MaxAge = defaults.MaxAge
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

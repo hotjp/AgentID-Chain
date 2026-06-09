@@ -66,6 +66,9 @@ func AAP() HandlerFunc {
 
 // AgentUUIDFromContext 取出 ctx 内的 agent UUID。
 func AgentUUIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	if v, ok := ctx.Value(ContextKeyAgentUUID).(string); ok {
 		return v
 	}

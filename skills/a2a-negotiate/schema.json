@@ -1,0 +1,29 @@
+{
+  "name": "a2a_negotiate",
+  "description": "协商 A2A Token",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {"type": "string", "format": "uuid"},
+      "scope": {
+        "type": "array",
+        "items": {"type": "string"},
+        "minItems": 1
+      }
+    },
+    "required": ["agent_id", "scope"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "token": {"type": "string"},
+      "expires_in": {"type": "integer"},
+      "public_key": {"type": "string"},
+      "private_key_encrypted": {"type": "string"}
+    },
+    "required": ["token", "expires_in", "public_key", "private_key_encrypted"]
+  },
+  "mcp_tool": {"name": "a2a_negotiate", "method": "tools/call"}
+}

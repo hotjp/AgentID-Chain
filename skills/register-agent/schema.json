@@ -1,0 +1,67 @@
+{
+  "name": "register_agent",
+  "description": "注册新 Agent 到 AgentID-Chain",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "owner": {
+        "type": "string",
+        "description": "Agent 所有者",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "level": {
+        "type": "string",
+        "description": "Agent 等级",
+        "enum": ["test", "prod", "internal"]
+      },
+      "metadata": {
+        "type": "object",
+        "description": "自定义元数据",
+        "additionalProperties": true
+      }
+    },
+    "required": ["owner", "level"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "owner": {"type": "string"},
+      "level": {"type": "string"},
+      "status": {
+        "type": "string",
+        "enum": ["active", "suspended", "revoked", "expired"]
+      },
+      "created_at": {"type": "string", "format": "date-time"},
+      "metadata": {"type": "object"},
+      "chain_tx_hash": {"type": "string", "nullable": true}
+    },
+    "required": ["agent_id", "owner", "level", "status", "created_at"]
+  },
+  "mcp_tool": {
+    "name": "register_agent",
+    "method": "tools/call"
+  },
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "register_agent",
+      "description": "注册新 Agent",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "owner": {"type": "string"},
+          "level": {"type": "string", "enum": ["test", "prod", "internal"]},
+          "metadata": {"type": "object"}
+        },
+        "required": ["owner", "level"]
+      }
+    }
+  }
+}

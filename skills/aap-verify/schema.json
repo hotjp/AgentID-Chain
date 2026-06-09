@@ -1,0 +1,24 @@
+{
+  "name": "aap_verify",
+  "description": "验证 AAP Challenge 签名，颁发 JWT",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "challenge": {"type": "string", "description": "Base64 编码的 32 字节"},
+      "signature": {"type": "string", "description": "Base64 编码的 64 字节签名"},
+      "public_key": {"type": "string", "description": "Base64 编码的 32 字节公钥"}
+    },
+    "required": ["challenge", "signature", "public_key"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "aap_token": {"type": "string"},
+      "expires_in": {"type": "integer"}
+    },
+    "required": ["aap_token", "expires_in"]
+  },
+  "mcp_tool": {"name": "aap_verify", "method": "tools/call"}
+}

@@ -1,0 +1,37 @@
+{
+  "name": "list_agents",
+  "description": "列出 Agent（带过滤与分页）",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "owner": {"type": "string"},
+      "level": {"type": "string", "enum": ["test", "prod", "internal"]},
+      "status": {"type": "string", "enum": ["active", "suspended", "revoked", "expired"]},
+      "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+      "cursor": {"type": "string"}
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "agent_id": {"type": "string"},
+            "owner": {"type": "string"},
+            "level": {"type": "string"},
+            "status": {"type": "string"},
+            "created_at": {"type": "string"}
+          }
+        }
+      },
+      "next_cursor": {"type": "string", "nullable": true}
+    },
+    "required": ["agents"]
+  },
+  "mcp_tool": {"name": "list_agents", "method": "tools/call"}
+}

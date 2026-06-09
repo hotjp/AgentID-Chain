@@ -61,7 +61,11 @@ func (r *Router) register() {
 	if r.api != nil {
 		r.mux.HandleFunc("/api/v2/agents/register", r.api.Register)
 		r.mux.HandleFunc("/api/v2/agents/", r.api.AgentByPath)
-		r.mux.HandleFunc("/api/v2/captcha/moltcaptcha/challenge", r.api.CaptchaChallenge)
-		r.mux.HandleFunc("/api/v2/captcha/moltcaptcha/verify", r.api.CaptchaVerify)
+		if r.api.CaptchaChallenge != nil {
+			r.mux.HandleFunc("/api/v2/captcha/moltcaptcha/challenge", r.api.CaptchaChallenge)
+		}
+		if r.api.CaptchaVerify != nil {
+			r.mux.HandleFunc("/api/v2/captcha/moltcaptcha/verify", r.api.CaptchaVerify)
+		}
 	}
 }

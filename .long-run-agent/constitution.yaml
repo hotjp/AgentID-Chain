@@ -4,7 +4,7 @@ project:
   name: AgentID-Chain
   description: 项目质量宪法（v2.0.1 基线）
   ratified: '2024-03-09'
-  version: 1.1.0
+  version: 1.2.0
 core_principles:
   - id: quality_first
     name: 质量优先
@@ -25,22 +25,124 @@ core_principles:
         required: true
 
   # P0.7：覆盖率门 — 包级覆盖率必须 ≥ 70%
-  # 真实执行入口在 CI（.github/workflows/ci.yml）的 `go test -coverprofile`
-  # 此处为政策声明，便于 LRA `set ... completed` 时引用 / 自检
+  # 执行入口：cmd/constitution-gates（NEW v1.2.0）
   - id: coverage_check
     name: 测试覆盖率门槛
     type: NON_NEGOTIABLE
-    description: 包级 Go 测试覆盖率必须 ≥ 70%（NON_NEGOTIABLE）。来源：技术文档 §8 安全 & §10 贡献指南；CI 强制门禁。
+    description: 包级 Go 测试覆盖率必须 ≥ 70%。来源：技术文档 §8 安全 & §10 贡献指南。
     gates:
       - name: coverage_ge_70
-        type: custom
-        check_func: coverage_ge_70
-        check_level: basic
+        type: go_test_cover
+        runner: ./cmd/constitution-gates
+        gate_name: coverage
         threshold: 0.70
         description: |
           包级 Go 测试覆盖率必须 ≥ 70%。
-          实际执行：CI 中 `go test ./... -coverprofile=coverage.out -covermode=atomic`，
-          然后用 `go tool cover -func=coverage.out | tail -1` 取 total 并比较 70%。
-          LRA 层面通过 check_func 钩子声明此政策；待后续实现 coverage_ge_70 检查器后自动生效。
+          实际执行：go test ./... -coverprofile=build/coverage.out -covermode=atomic，
+          然后用 go tool cover -func=build/coverage.out 解析 total 百分比。
+          执行器：go run ./cmd/constitution-gates -gate coverage -threshold 0.70
         required: true
+        severity: NON_NEGOTIABLE
+
+  # P23.2: lint 门
+  - id: lint_check
+    name: 代码风格与静态检查
+    type: MANDATORY
+    description: golangci-lint 必须零 issue 通过
+    gates:
+      - name: lint_zero_issues
+        type: golangci_lint
+        runner: ./cmd/constitution-gates
+        gate_name: lint
+        description: |
+          golangci-lint run --timeout=5m ./... 必须零 issue 通过。
+          工具缺失时视为失败（强制安装）。
+        required: true
+        severity: MANDATORY
+
+  # P23.3: security 门
+  - id: security_check
+    name: 安全扫描
+    type: MANDATORY
+    description: gosec + govulncheck 必须无高危问题
+    gates:
+      - name: security_scan
+        type: gosec_govulncheck
+        runner: ./cmd/constitution-gates
+        gate_name: security
+        description: |
+          gosec -severity=high + govulncheck -mode=source 必须零高危。
+        required: true
+        severity: MANDATORY
+
+  # P23.4: docker build 门
+  - id: docker_build_check
+    name: 容器构建
+    type: MANDATORY
+    description: 所有 Dockerfile 必须成功构建
+    gates:
+      - name: docker_build
+        type: docker_build
+        runner: ./cmd/constitution-gates
+        gate_name: docker_build
+        description: |
+          扫描所有 Dockerfile* 并执行 docker build -f X -t TAG DIR。
+        required: true
+        severity: MANDATORY
+
+  # P23.5: schema migration 门
+  - id: schema_migration_check
+    name: 数据库迁移完整性
+    type: MANDATORY
+    description: migration 文件必须成对、连续、命名规范
+    gates:
+      - name: schema_migration
+        type: migration_pair
+        runner: ./cmd/constitution-gates
+        gate_name: schema_migration
+        description: |
+          检查 NNN_name.up.sql / .down.sql 配对存在，版本号严格递增。
+        required: true
+        severity: MANDATORY
+
+  # P23.6: 文档完整性门
+  - id: docs_check
+    name: 文档完整性
+    type: MANDATORY
+    description: README/CHANGELOG/LICENSE 必存在，docs/ 必完整
+    gates:
+      - name: docs_completeness
+        type: docs_check
+        runner: ./cmd/constitution-gates
+        gate_name: docs_completeness
+        description: |
+          必存在 README.md/CHANGELOG.md/LICENSE，docs/ ≥ 10 篇 .md，
+          本地 .md 链接不得断。
+        required: true
+        severity: MANDATORY
+
+  # P23.7: skill 验证门
+  - id: skill_check
+    name: Agent Skill 验证
+    type: MANDATORY
+    description: 所有 Agent Skill 必含 SKILL.md/schema.json/examples
+    gates:
+      - name: skill_validation
+        type: skill_check
+        runner: ./cmd/constitution-gates
+        gate_name: skill_validation
+        description: |
+          每个 skill 目录必含合法 frontmatter 的 SKILL.md，
+          合法 JSON 的 schema.json（含 name/parameters），
+          examples/ 目录。
+        required: true
+        severity: MANDATORY
 template_gates: {}
+execution:
+  runner_binary: ./bin/constitution-gates
+  invocation: 'go run ./cmd/constitution-gates -format text'
+  ci_integration: .github/workflows/constitution-gates.yml
+  local_dev: 'make gates'
+  fail_fast: true
+  non_negotiable_codes: [2]
+  required_failure_codes: [1]

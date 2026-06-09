@@ -62,7 +62,7 @@ func Execute() error {
 
 func init() {
 	// 全局 flags
-	rootCmd.PersistentFlags().StringP("config", "c", "config.yaml", "配置文件路径")
+	rootCmd.PersistentFlags().StringP("config", "c", "", "配置文件路径（可选；缺省走 env + 默认值）")
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "日志级别 (debug|info|warn|error)")
 	rootCmd.PersistentFlags().String("role", "gateway", "运行角色 (gateway|auth-center|tag-sense|mcp|migration|cli)")
 
@@ -111,9 +111,7 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "起 gateway 服务（HTTP/gRPC/MCP）",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "serve: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
+		return runServe(nil, nil)
 	},
 }
 

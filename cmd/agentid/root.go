@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -66,17 +65,8 @@ func init() {
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "日志级别 (debug|info|warn|error)")
 	rootCmd.PersistentFlags().String("role", "gateway", "运行角色 (gateway|auth-center|tag-sense|mcp|migration|cli)")
 
-	// 注册子命令（占位实现，P5 阶段补全）
-	rootCmd.AddCommand(serveCmd)
-	rootCmd.AddCommand(registerCmd)
-	rootCmd.AddCommand(infoCmd)
-	rootCmd.AddCommand(upgradeCmd)
-	rootCmd.AddCommand(banCmd)
-	rootCmd.AddCommand(unbanCmd)
-	rootCmd.AddCommand(unregisterCmd)
-	rootCmd.AddCommand(batchCmd)
-	rootCmd.AddCommand(migrateCmd)
-	rootCmd.AddCommand(versionCmd)
+	// 注册子命令
+	registerSubcommands()
 }
 
 // versionCmd 打印版本信息。
@@ -105,8 +95,9 @@ func versionString() string {
 		v, c, d, runtime.GOOS, runtime.GOARCH)
 }
 
-// ---------- 子命令占位（各命令的 RunE 仅打印 not-implemented；P5 阶段替换） ----------
+// ---------- 真实子命令 ----------
 
+// serveCmd 见 serve.go。
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "起 gateway 服务（HTTP/gRPC/MCP）",
@@ -115,82 +106,60 @@ var serveCmd = &cobra.Command{
 	},
 }
 
-var registerCmd = &cobra.Command{
-	Use:   "register",
-	Short: "注册新 Agent",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "register: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// upgradeCmd 见 upgrade.go。
+var upgradeCmd = upgradeCmdImpl
 
-var infoCmd = &cobra.Command{
-	Use:   "info",
-	Short: "查询 Agent 信息",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "info: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// banCmd 见 ban.go。
+var banCmd = banCmdImpl
 
-var upgradeCmd = &cobra.Command{
-	Use:   "upgrade",
-	Short: "升级 Agent Level",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "upgrade: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// unbanCmd 见 unban.go。
+var unbanCmd = unbanCmdImpl
 
-var banCmd = &cobra.Command{
-	Use:   "ban",
-	Short: "封禁 Agent",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "ban: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// unregisterCmd 见 unregister.go。
+var unregisterCmd = unregisterCmdImpl
 
-var unbanCmd = &cobra.Command{
-	Use:   "unban",
-	Short: "解封 Agent",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "unban: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// batchCmd 见 batch_register.go / batch.go。
+var batchCmd = batchCmdImpl
 
-var unregisterCmd = &cobra.Command{
-	Use:   "unregister",
-	Short: "注销 Agent",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "unregister: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// migrateCmd 见 migrate.go。
+var migrateCmd = migrateCmdImpl
 
-var batchCmd = &cobra.Command{
-	Use:   "batch",
-	Short: "批量操作（CSV 输入）",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "batch: not implemented yet (see LRA P5)")
-		os.Exit(1)
-		return nil
-	},
-}
+// infoCmd 见 info.go。
+var infoCmd = infoCmdImpl
 
-var migrateCmd = &cobra.Command{
-	Use:   "migrate",
-	Short: "数据库迁移（仅 --role=migration）",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		_, _ = fmt.Fprintln(os.Stderr, "migrate: not implemented yet (see LRA P3.1)")
-		os.Exit(1)
-		return nil
-	},
+// registerCmd 见 register.go。
+var registerCmd = registerCmdImpl
+
+// auditCmd 见 audit.go。
+var auditCmd = auditCmdImpl
+
+// localCmd 见 local_init.go（父命令 local，承载 init 等子命令）。
+var localCmd = localParentCmd
+
+// configCmd 见 config_cmd.go。
+var configCmd = configCmdImpl
+
+// promptCmd 见 prompt.go。
+var promptCmd = promptCmdImpl
+
+// aapCmd 见 aap_handshake.go。
+var aapCmd = aapCmdImpl
+
+// registerSubcommands 把全部子命令挂到 rootCmd（避免 init() 跨文件顺序问题）。
+func registerSubcommands() {
+	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(registerCmd)
+	rootCmd.AddCommand(infoCmd)
+	rootCmd.AddCommand(upgradeCmd)
+	rootCmd.AddCommand(banCmd)
+	rootCmd.AddCommand(unbanCmd)
+	rootCmd.AddCommand(unregisterCmd)
+	rootCmd.AddCommand(batchCmd)
+	rootCmd.AddCommand(auditCmd)
+	rootCmd.AddCommand(migrateCmd)
+	rootCmd.AddCommand(localCmd)
+	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(promptCmd)
+	rootCmd.AddCommand(aapCmd)
+	rootCmd.AddCommand(versionCmd)
 }

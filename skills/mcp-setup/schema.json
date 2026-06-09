@@ -1,0 +1,41 @@
+{
+  "name": "mcp_setup",
+  "description": "配置 MCP 客户端",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "client": {"type": "string", "enum": ["claude-desktop", "cursor", "cline", "continue"]},
+      "transport": {"type": "string", "enum": ["stdio", "http"], "default": "stdio"},
+      "http_url": {"type": "string"},
+      "aap_key": {"type": "string"}
+    },
+    "required": ["client"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "config_path": {"type": "string"},
+      "config": {"type": "object"}
+    }
+  },
+  "mcp_tool": {"name": "mcp_setup", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "mcp_setup",
+      "description": "配置 MCP 客户端连接 AgentID-Chain",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client": {"type": "string"},
+          "transport": {"type": "string"},
+          "http_url": {"type": "string"},
+          "aap_key": {"type": "string"}
+        },
+        "required": ["client"]
+      }
+    }
+  }
+}

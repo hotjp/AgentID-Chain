@@ -1,0 +1,42 @@
+{
+  "name": "test",
+  "description": "跑测试套件",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scope": {"type": "string", "enum": ["unit", "integration", "e2e", "all"], "default": "unit"},
+      "package": {"type": "string"},
+      "race": {"type": "boolean", "default": false},
+      "coverage": {"type": "boolean", "default": false}
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "passed": {"type": "integer"},
+      "failed": {"type": "integer"},
+      "skipped": {"type": "integer"},
+      "duration_s": {"type": "number"},
+      "coverage_pct": {"type": "number"}
+    }
+  },
+  "mcp_tool": {"name": "test", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "test",
+      "description": "跑测试套件",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {"type": "string"},
+          "package": {"type": "string"},
+          "race": {"type": "boolean"},
+          "coverage": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

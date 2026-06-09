@@ -1,0 +1,47 @@
+{
+  "name": "docker_deploy",
+  "description": "部署 AgentID-Chain Docker 环境",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "mode": {"type": "string", "enum": ["dev", "demo", "test"], "default": "dev"},
+      "pull": {"type": "boolean", "default": false},
+      "detached": {"type": "boolean", "default": true}
+    },
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "containers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "status": {"type": "string"},
+            "port": {"type": "string"}
+          }
+        }
+      },
+      "compose_file": {"type": "string"}
+    }
+  },
+  "mcp_tool": {"name": "docker_deploy", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "docker_deploy",
+      "description": "部署 AgentID-Chain",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {"type": "string"},
+          "pull": {"type": "boolean"},
+          "detached": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

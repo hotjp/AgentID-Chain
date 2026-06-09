@@ -1,0 +1,43 @@
+{
+  "name": "debug",
+  "description": "调试 AgentID-Chain 运行时",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {"type": "string", "enum": ["enable_debug", "capture_trace", "pprof_cpu", "pprof_heap", "pprof_goroutine"]},
+      "duration": {"type": "string", "default": "30s"},
+      "trace_id": {"type": "string"},
+      "output": {"type": "string"}
+    },
+    "required": ["action"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "action": {"type": "string"},
+      "output": {"type": "string"},
+      "duration_s": {"type": "integer"},
+      "url": {"type": "string"}
+    }
+  },
+  "mcp_tool": {"name": "debug", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "debug",
+      "description": "调试运行时",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {"type": "string"},
+          "duration": {"type": "string"},
+          "trace_id": {"type": "string"},
+          "output": {"type": "string"}
+        },
+        "required": ["action"]
+      }
+    }
+  }
+}

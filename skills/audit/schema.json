@@ -1,0 +1,57 @@
+{
+  "name": "audit_agent",
+  "description": "查询 Agent 审计日志",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {"type": "string", "format": "uuid"},
+      "since": {"type": "string", "format": "date-time"},
+      "until": {"type": "string", "format": "date-time"},
+      "event_type": {"type": "string", "enum": ["register", "upgrade", "revoke", "aap_verify", "list"]},
+      "limit": {"type": "integer", "default": 100, "maximum": 1000}
+    },
+    "required": ["agent_id"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {"type": "string"},
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "timestamp": {"type": "string"},
+            "event_type": {"type": "string"},
+            "actor": {"type": "string"},
+            "details": {"type": "object"},
+            "trace_id": {"type": "string"}
+          }
+        }
+      },
+      "total": {"type": "integer"}
+    },
+    "required": ["agent_id", "events", "total"]
+  },
+  "mcp_tool": {"name": "audit_agent", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "audit_agent",
+      "description": "查询 Agent 审计日志",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {"type": "string"},
+          "since": {"type": "string"},
+          "until": {"type": "string"},
+          "event_type": {"type": "string"},
+          "limit": {"type": "integer"}
+        },
+        "required": ["agent_id"]
+      }
+    }
+  }
+}

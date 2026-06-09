@@ -1,0 +1,42 @@
+{
+  "name": "a2a_setup",
+  "description": "配置 A2A 远程调用凭证",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {"type": "string", "format": "uuid"},
+      "peer_url": {"type": "string", "format": "uri"},
+      "auth_mode": {"type": "string", "enum": ["mtls", "jwt"], "default": "mtls"},
+      "ttl": {"type": "string", "default": "24h"}
+    },
+    "required": ["agent_id", "peer_url"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "credential_path": {"type": "string"},
+      "expires_at": {"type": "string"},
+      "peer_url": {"type": "string"}
+    }
+  },
+  "mcp_tool": {"name": "a2a_setup", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "a2a_setup",
+      "description": "配置 A2A 凭证",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {"type": "string"},
+          "peer_url": {"type": "string"},
+          "auth_mode": {"type": "string"},
+          "ttl": {"type": "string"}
+        },
+        "required": ["agent_id", "peer_url"]
+      }
+    }
+  }
+}

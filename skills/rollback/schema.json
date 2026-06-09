@@ -1,0 +1,42 @@
+{
+  "name": "rollback",
+  "description": "回滚 AgentID-Chain",
+  "version": "2.0.1",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scope": {"type": "string", "enum": ["app", "db", "chain", "all"]},
+      "revision": {"type": "integer", "minimum": 0},
+      "dry_run": {"type": "boolean", "default": false}
+    },
+    "required": ["scope"],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "scope": {"type": "string"},
+      "from_revision": {"type": "integer"},
+      "to_revision": {"type": "integer"},
+      "dry_run": {"type": "boolean"},
+      "duration_s": {"type": "integer"}
+    }
+  },
+  "mcp_tool": {"name": "rollback", "method": "tools/call"},
+  "openai_function": {
+    "type": "function",
+    "function": {
+      "name": "rollback",
+      "description": "回滚到上一版本",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {"type": "string"},
+          "revision": {"type": "integer"},
+          "dry_run": {"type": "boolean"}
+        },
+        "required": ["scope"]
+      }
+    }
+  }
+}

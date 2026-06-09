@@ -98,7 +98,19 @@ func NewSensitiveHandler(inner slog.Handler, cfg *SensitiveConfig) *SensitiveHan
 	}
 	c := DefaultSensitiveConfig()
 	if cfg != nil {
-		c = *cfg
+		// 合并：传入的零值字段保留默认
+		if cfg.Replacement != "" {
+			c.Replacement = cfg.Replacement
+		}
+		if cfg.ExtraKeys != nil {
+			c.ExtraKeys = cfg.ExtraKeys
+		}
+		if cfg.ExtraPatterns != nil {
+			c.ExtraPatterns = cfg.ExtraPatterns
+		}
+		// Disabled 显式传入时覆盖
+		c.Disabled = cfg.Disabled
+		c.PreserveLength = cfg.PreserveLength
 	}
 	h := &SensitiveHandler{
 		inner:      inner,

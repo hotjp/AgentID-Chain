@@ -1,0 +1,250 @@
+# AgentID-Chain — Prometheus 告警规则 (P19.9)
+#
+# 加载方式：
+#   prometheus.yml:
+#     rule_files:
+#       - "alerts.yaml"
+#
+# 告警分级：
+#   - critical: P0 事件，5min 内 ack
+#   - warning:  P1 事件，30min 内 ack
+#   - info:     P2 事件，4h 内 ack
+
+groups:
+# =============================================================================
+# 服务可用性
+# =============================================================================
+- name: availability
+  interval: 30s
+  rules:
+  - alert: HighErrorRate
+    expr: |
+      sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service_name, route) /
+      sum(rate(http_requests_total[5m])) by (service_name, route) > 0.01
+    for: 5m
+    labels:
+      severity: critical
+      slo: availability
+    annotations:
+      summary: "服务 {{ $labels.service_name }} 错误率 > 1%"
+      description: "{{ $labels.route }} 错误率 {{ $value | humanizePercentage }}"
+      runbook: "https://wiki/runbooks/high-error-rate"
+
+  - alert: ServiceDown
+    expr: up{service_name=~"agentid-.*"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "服务 {{ $labels.service_name }} 不可达"
+      description: "1 分钟内无响应"
+
+  - alert: High5xxAbsolute
+    expr: |
+      sum(rate(http_requests_total{status_code=~"5.."}[1m])) by (service_name) > 10
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.service_name }} 5xx 速率 > 10/s"
+
+# =============================================================================
+# SLO 错误预算
+# =============================================================================
+- name: slo_burn
+  interval: 30s
+  rules:
+  # 1h 预算消耗率 > 14.4x（30 天预算 1h 内耗尽）
+  - alert: SLOBurnRateFast
+    expr: |
+      (
+        sum(rate(http_requests_total{status_code!~"5.."}[5m])) by (service_name)
+        /
+        sum(rate(http_requests_total[5m])) by (service_name)
+      ) < 0.99
+    for: 2m
+    labels:
+      severity: critical
+      slo: availability
+    annotations:
+      summary: "{{ $labels.service_name }} 可用性 < 99%（2min）"
+      description: "错误预算快速消耗"
+
+  # 6h 预算消耗率 > 6x
+  - alert: SLOBurnRateSlow
+    expr: |
+      (
+        sum(rate(http_requests_total{status_code!~"5.."}[30m])) by (service_name)
+        /
+        sum(rate(http_requests_total[30m])) by (service_name)
+      ) < (1 - 0.001 * 6)
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.service_name }} 慢速预算消耗（30min）"
+
+# =============================================================================
+# 延迟
+# =============================================================================
+- name: latency
+  interval: 30s
+  rules:
+  - alert: HighP99Latency
+    expr: |
+      histogram_quantile(0.99,
+        sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service_name, route)
+      ) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      slo: latency
+    annotations:
+      summary: "{{ $labels.service_name }}/{{ $labels.route }} P99 > 100ms"
+      description: "当前 {{ $value }}s"
+
+  - alert: VeryHighP99Latency
+    expr: |
+      histogram_quantile(0.99,
+        sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service_name, route)
+      ) > 0.5
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "{{ $labels.service_name }}/{{ $labels.route }} P99 > 500ms"
+
+  - alert: BackendHighLatency
+    expr: |
+      histogram_quantile(0.99,
+        sum(rate(backend_request_duration_seconds_bucket[5m])) by (le, type, op)
+      ) > 0.05
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "后端 {{ $labels.type }}/{{ $labels.op }} P99 > 50ms"
+
+# =============================================================================
+# 鉴权 / AAP
+# =============================================================================
+- name: aap
+  interval: 30s
+  rules:
+  - alert: AAPVerifyFailureSpike
+    expr: |
+      sum(rate(aap_verify_total{result="failure"}[5m])) by (reason) > 5
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "AAP 验证失败激增（reason={{ $labels.reason }}）"
+
+  - alert: AAPNonceReplayDetected
+    expr: increase(aap_nonce_replays_total[5m]) > 0
+    labels:
+      severity: critical
+      category: security
+    annotations:
+      summary: "检测到 AAP nonce 重放"
+
+  - alert: AAPActiveSessionsDrop
+    expr: |
+      aap_active_sessions < 10
+    for: 10m
+    labels:
+      severity: info
+    annotations:
+      summary: "活跃 AAP 会话 < 10（流量低？服务异常？）"
+
+# =============================================================================
+# 缓存
+# =============================================================================
+- name: cache
+  interval: 30s
+  rules:
+  - alert: LowCacheHitRate
+    expr: |
+      sum(rate(cache_operations_total{result="hit"}[5m])) by (backend) /
+      sum(rate(cache_operations_total{result=~"hit|miss"}[5m])) by (backend) < 0.5
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.backend }} 缓存命中率 < 50%"
+
+  - alert: HighCacheErrorRate
+    expr: |
+      sum(rate(cache_operations_total{result="error"}[5m])) by (backend) /
+      sum(rate(cache_operations_total[5m])) by (backend) > 0.01
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "{{ $labels.backend }} 缓存错误率 > 1%"
+
+# =============================================================================
+# 资源
+# =============================================================================
+- name: resources
+  interval: 30s
+  rules:
+  - alert: HighGoroutineCount
+    expr: go_goroutines > 10000
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.service_name }} Goroutine > 10000"
+
+  - alert: HighHeapUsage
+    expr: go_memstats_heap_inuse_bytes / 1024 / 1024 > 1024
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.service_name }} 堆内存 > 1GB"
+
+  - alert: HighGCPause
+    expr: rate(go_gc_duration_seconds_sum[5m]) > 0.05
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.service_name }} GC 暂停 > 50ms"
+
+  - alert: ConnectionPoolExhausted
+    expr: |
+      backend_pool_size{state="active"} / backend_pool_size{state="total"} > 0.9
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.type }} 连接池使用率 > 90%"
+
+# =============================================================================
+# 链上
+# =============================================================================
+- name: chain
+  interval: 1m
+  rules:
+  - alert: ChainHighFailureRate
+    expr: |
+      sum(rate(backend_requests_total{type=~"chain|polygon|fisco",status="failure"}[5m])) by (type) /
+      sum(rate(backend_requests_total{type=~"chain|polygon|fisco"}[5m])) by (type) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.type }} 链上 RPC 失败率 > 10%"
+
+  - alert: ChainRPCLatency
+    expr: |
+      histogram_quantile(0.99,
+        sum(rate(backend_request_duration_seconds_bucket{type=~"chain|polygon|fisco"}[5m])) by (le, type, op)
+      ) > 5
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.type }}/{{ $labels.op }} 链上 P99 > 5s"

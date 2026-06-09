@@ -1,3 +1,32 @@
+# Architecture
+
+> AgentID-Chain 系统架构入口 — 完整规范见下方
+
+## 🧭 快速导航
+
+| 关注点 | 文档 |
+|--------|------|
+| 5 层架构总览 | [architecture/5-layer.md](architecture/5-layer.md) |
+| 存储后端（local / onchain / hybrid）| [architecture/storage.md](architecture/storage.md) |
+| 协议（AAP / A2A / MCP）| [architecture/protocols.md](architecture/protocols.md) |
+| 架构决策记录（ADR）| [architecture/adr/](architecture/adr/) |
+| 项目总览 | [architecture/overview.md](architecture/overview.md) |
+| **完整规范（下方）** | 5 层 + 插件 + 配置 + 日志 + 存储 + DSL + 错误码 + 测试 + 架构检查脚本 |
+
+## 🎯 关键原则
+
+1. **依赖铁律**：`L5-Gateway → L3-Authz → L4-Service → L2-Domain → L1-Storage`
+2. **零领域依赖**：L2 不引用任何第三方包
+3. **接口倒置**：插件接口定义在 L4-Service，实现放在 plugins/
+4. **Fail Fast**：L3 拒绝则立即返回
+5. **可观测性优先**：所有跨层调用带 trace_id
+
+## 📐 详细规范
+
+下方是项目完整的架构规范文档（技术栈 / 分层 / 插件 / 配置 / 日志 / 存储 / DSL / 错误码 / 测试 / 架构检查脚本）。
+
+---
+
 # vibe-go - 完整架构规范
 
 ## 目标

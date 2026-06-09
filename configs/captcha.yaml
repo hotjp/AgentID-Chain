@@ -33,8 +33,11 @@ shared_signing_key_path: ./keys/captcha-hmac.pem
 # Rate limit（per-IP）
 ratelimit:
   enabled: true
-  per_ip_per_minute: 30        # 单 IP 每分钟最多 30 次 challenge 请求
-  per_ip_per_hour: 500         # 单 IP 每小时最多 500 次
+  per_ip_per_minute: 10        # 单 IP 每分钟最多 10 次 challenge 请求（P17.9 阈值）
+  per_ip_per_hour: 200         # 单 IP 每小时最多 200 次
+  burst: 3                     # 突发允许
+  ban_threshold: 50            # 1 小时内累计 ban 阈值
+  ban_duration: 1h             # ban 时长
 
 # Bot 模式识别（简单启发式）
 heuristics:

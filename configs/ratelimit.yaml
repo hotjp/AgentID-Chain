@@ -1,0 +1,102 @@
+# AgentID-Chain ratelimit.yaml — 全局 Rate Limit 阈值 (P17.9)
+#
+# 集中配置 L3 鉴权层与 L5 网关层的限流阈值。
+# 与 captcha.yaml 独立：captcha 限流针对 challenge 端点；
+# 本文件针对所有 /v1/* 业务端点。
+#
+# 调参原则：
+#   - per_ip: 防单 IP 滥用
+#   - per_agent: 防单个 agent 越权
+#   - global: 防止整体服务过载
+#   - 突发（burst）允许短时尖峰
+#
+# 注意：所有值需与 docs/security/rate-limit.md 保持一致。
+
+# 全局开关
+enabled: true
+
+# 算法：token-bucket（推荐，支持 burst）| fixed-window | sliding-window
+algorithm: token-bucket
+
+# Redis 限流（推荐；进程内为 fallback）
+backend: redis
+
+# 键前缀（便于多环境隔离）
+key_prefix: "rl:v1:"
+
+# ---------- Per-IP ----------
+per_ip:
+  enabled: true
+  requests_per_minute: 60     # 单 IP 每分钟 60 次
+  requests_per_hour: 1000     # 单 IP 每小时 1000 次
+  burst: 10                   # 桶容量
+
+# ---------- Per-Agent（已认证）----------
+per_agent:
+  enabled: true
+  requests_per_minute: 120    # 单 agent 每分钟 120 次
+  requests_per_hour: 5000     # 单 agent 每小时 5000 次
+  burst: 20
+
+# ---------- 端点粒度（精细限流）----------
+endpoints:
+  /v1/agents/register:
+    requests_per_minute: 5     # 注册端点严格
+    burst: 2
+  /v1/agents/upgrade:
+    requests_per_minute: 5
+    burst: 2
+  /v1/aap/handshake:
+    requests_per_minute: 10    # 与 captcha 阈值对齐
+    burst: 3
+  /v1/aap/verify:
+    requests_per_minute: 20
+    burst: 5
+  /v1/auth/login:
+    requests_per_minute: 10
+    burst: 3
+  /v1/auth/refresh:
+    requests_per_minute: 30
+    burst: 5
+  /v1/auth/register:
+    requests_per_minute: 5
+    burst: 2
+
+# ---------- 路径前缀（粗粒度）----------
+prefixes:
+  /v1/admin/:
+    requests_per_minute: 30
+    burst: 5
+    require_role: admin        # 额外要求 admin 角色
+  /v1/batch/:
+    requests_per_minute: 3     # 批量操作最严格
+    burst: 1
+
+# ---------- 全局上限（防雪崩）----------
+global:
+  requests_per_second: 5000   # 全集群每秒上限
+  concurrent_inflight: 10000  # 正在处理的请求数上限
+
+# ---------- 超限响应 ----------
+response:
+  status_code: 429
+  retry_after_header: true    # 设置 Retry-After
+  body_template: |
+    {
+      "error": "rate_limited",
+      "message": "Too many requests. Please retry after {{.RetryAfter}}.",
+      "code": "RATE_LIMIT_EXCEEDED"
+    }
+
+# ---------- 观察 ----------
+observability:
+  metrics_enabled: true       # 暴露 prometheus 指标
+  log_violations: true        # 记录所有超限事件
+  log_sample_rate: 1.0        # 采样率（生产可降为 0.1）
+
+# ---------- 例外（白名单）----------
+exemptions:
+  ips:
+    - 127.0.0.1
+    - ::1
+  agents: []                  # agent ID 白名单（k8s service account 等）

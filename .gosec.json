@@ -1,0 +1,154 @@
+{
+  "$schema": "https://github.com/securego/gosec/raw/master/cmd/gosec/jsonschema/gjsonschema.json",
+  "global": {
+    "nosec": false,
+    "audit": false
+  },
+  "rules": {
+    "G101": {
+      "name": "Hardcoded credentials",
+      "severity": "HIGH",
+      "confidence": "HIGH",
+      "description": "Look for hardcoded credentials",
+      "match": "(?i)(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\\s*[:=]\\s*[\"'][^\"']{8,}[\"']"
+    },
+    "G102": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G103": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G104": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G106": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G107": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G108": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G109": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G110": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G111": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G112": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G114": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G201": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G202": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G203": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G204": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G301": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G302": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G303": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G304": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G305": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G306": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G307": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G401": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G402": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G403": {
+      "severity": "HIGH",
+      "confidence": "HIGH"
+    },
+    "G404": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    },
+    "G501": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G502": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G503": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G504": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G505": {
+      "severity": "MEDIUM",
+      "confidence": "HIGH"
+    },
+    "G601": {
+      "severity": "MEDIUM",
+      "confidence": "MEDIUM"
+    }
+  },
+  "exclude": {
+    "rules": ["G107"],
+    "files": [
+      "**/*_test.go",
+      "**/testdata/**",
+      "**/mock_*.go",
+      "**/*.pb.go",
+      "cmd/mock-chain/main.go"
+    ]
+  }
+}

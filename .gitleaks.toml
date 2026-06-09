@@ -1,0 +1,125 @@
+# =============================================================================
+# AgentID-Chain — Gitleaks 配置 (P17.1)
+# =============================================================================
+# 密钥扫描：检测 commit 中的 secret / API key / private key 等
+# 用法：
+#   - pre-commit hook（已配 .pre-commit-config.yaml）
+#   - CI workflow: security.yml
+#   - 手动：gitleaks detect --source . --config .gitleaks.toml
+#
+# 规则参考：https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+# =============================================================================
+
+title = "AgentID-Chain Gitleaks Config"
+
+# 全局 allowlist
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''(^|/)vendor/''',
+    '''(^|/)node_modules/''',
+    '''(^|/)testdata/fixtures\.yaml$''',     # 测试数据含 mock 密钥
+    '''(^|/)configs/.*\.yaml$''',            # 配置文件（dev demo secret）
+    '''(^|/)keys/.*\.pem$''',                # 演示用密钥
+    '''(^|/)\.long-run-agent/''',
+  ]
+  regexes = [
+    '''test[_-]?key''',
+    '''placeholder[_-]?secret''',
+    '''dev[_-]?secret''',
+  ]
+
+# ---------- 规则定义 ----------
+
+[[rules]]
+  id = "aws-access-token"
+  description = "AWS Access Key ID"
+  regex = '''(?:AKIA|ASIA)[A-Z0-9]{16}'''
+  tags = ["aws", "key"]
+
+[[rules]]
+  id = "aws-secret-key"
+  description = "AWS Secret Access Key"
+  regex = '''(?i)aws(.{0,20})?(secret|sk).{0,5}['"\s:=]+([A-Za-z0-9/+=]{40})'''
+  tags = ["aws", "secret"]
+
+[[rules]]
+  id = "github-pat"
+  description = "GitHub Personal Access Token"
+  regex = '''ghp_[A-Za-z0-9]{36}'''
+  tags = ["github", "token"]
+
+[[rules]]
+  id = "github-oauth"
+  description = "GitHub OAuth Token"
+  regex = '''gho_[A-Za-z0-9]{36}'''
+  tags = ["github", "token"]
+
+[[rules]]
+  id = "github-app"
+  description = "GitHub App Token"
+  regex = '''(ghu|ghs)_[A-Za-z0-9]{36}'''
+  tags = ["github", "token"]
+
+[[rules]]
+  id = "slack-bot"
+  description = "Slack Bot Token"
+  regex = '''xox[baprs]-[A-Za-z0-9-]{10,72}'''
+  tags = ["slack", "token"]
+
+[[rules]]
+  id = "stripe-secret"
+  description = "Stripe Secret Key"
+  regex = '''sk_live_[A-Za-z0-9]{24,99}'''
+  tags = ["stripe", "secret"]
+
+[[rules]]
+  id = "stripe-restricted"
+  description = "Stripe Restricted Key"
+  regex = '''rk_live_[A-Za-z0-9]{24,99}'''
+  tags = ["stripe", "secret"]
+
+[[rules]]
+  id = "private-key"
+  description = "Private Key Block (PEM)"
+  regex = '''-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY(?: BLOCK)?-----'''
+  tags = ["private-key", "pem"]
+
+[[rules]]
+  id = "jwt-token"
+  description = "JWT Token (header.payload.signature)"
+  regex = '''eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+  tags = ["jwt"]
+
+[[rules]]
+  id = "agentid-private-key"
+  description = "AgentID-Chain Ed25519 Private Key (base64 64B)"
+  regex = '''(?i)agentid(.{0,20})?(private[_-]?key|sk).{0,5}['"\s:=]+([A-Za-z0-9+/]{86}==|[A-Za-z0-9+/]{64,})'''
+  tags = ["agentid", "private-key"]
+  keywords = ["agentid", "private_key", "private-key"]
+
+[[rules]]
+  id = "agentid-aap-secret"
+  description = "AgentID-Chain AAP Domain Secret"
+  regex = '''(?i)(aap[_-]?domain[_-]?secret|aap[_-]?hmac).{0,5}['"\s:=]+([A-Za-z0-9+/]{32,}={0,2})'''
+  tags = ["agentid", "aap"]
+  keywords = ["aap", "domain_secret"]
+
+[[rules]]
+  id = "high-entropy"
+  description = "High entropy string (catch-all)"
+  regex = '''(?i)(api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token).{0,5}['"\s:=]+(['"])([A-Za-z0-9+/=_-]{32,})\2'''
+  tags = ["generic", "high-entropy"]
+  keywords = ["api_key", "secret", "token", "password"]
+
+[[rules]]
+  id = "dsn-credential"
+  description = "DSN with embedded credentials (postgres://user:pass@...)"
+  regex = '''(?i)(postgres|postgresql|mysql|mongodb|redis|amqp):\/\/([^:\s]+):([^@\s]+)@'''
+  tags = ["dsn", "credential"]
+
+  [rules.allowlist]
+    paths = [
+      '''(^|/)configs/.*\.yaml$''',   # dev DSN 演示
+      '''(^|/)testdata/.*''',
+    ]

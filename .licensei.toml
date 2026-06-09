@@ -1,0 +1,55 @@
+# =============================================================================
+# AgentID-Chain — License Check (P17.4)
+# =============================================================================
+# 工具：licensei（https://github.com/goph/licensei）
+# 安装：go install github.com/goph/licensei@latest
+# 运行：licensei check
+# =============================================================================
+
+# 允许的 license（白名单）
+allowed = [
+    # 主流宽松协议
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Unlicense",
+
+    # Go 标准（特殊）
+    "BSD-3-Clause--modified-by-Google",
+    "PSF-2.0",
+
+    # Apache + 其他
+    "Apache-2.0 WITH LLVM-exception",
+]
+
+# 禁止的 license（黑名单 — 必须人工 review）
+forbidden = [
+    "AGPL-1.0",
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "Commons-Clause",
+    "Elastic-2.0",
+    "SSPL-1.0",
+    "BUSL-1.1",
+    "RPL-1.5",
+    "RPL-1.1",
+]
+
+# 未知 license 处理
+[decisions]
+# 格式：<module-path> = "allowed" | "forbidden" | "unknown"
+"github.com/x448/float16" = "allowed"  # MIT
+"modernc.org/mathutil"   = "allowed"    # BSD-3-Clause
+"modernc.org/strutil"    = "allowed"    # BSD-3-Clause
+"modernc.org/memory"     = "allowed"    # BSD-3-Clause
+"modernc.org/libc"       = "allowed"    # BSD-3-Clause
+
+# 排除的 module
+[exclude]
+"honnef.co/go/tools" = "dev-only"
+"golang.org/x/perf"   = "dev-only"
+"golang.org/x/talks"  = "doc-only"

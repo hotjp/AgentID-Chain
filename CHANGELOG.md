@@ -8,10 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- 完整文档体系（架构、API、运维、Runbook、贡献指南）
-- Agent Skills 库（8 套 MCP / Function Calling Skills）
-- Prompt 模板库（13 套系统/场景/错误恢复模板）
+- 完整文档体系（架构、API、运维、Runbook、贡献指南、安全、迁移、SEMVER）
+- Agent Skills 库（15 套 MCP / Function Calling Skills）— register / query / upgrade / revoke / batch / aap-verify / a2a-negotiate / list-agents / **audit / mcp-setup / a2a-setup / docker-deploy / test / debug / rollback**
+- Prompt 模板库（**18** 套系统/场景/错误恢复模板）— 新增 **aap-handshake / moltcaptcha-solve / a2a-negotiate / postmortem / release-notes**
 - 5 套 Agent 工作流示例（CoT、ReAct、条件、顺序）
+- 5 篇 ADR — 存储混合、AAP EdDSA、UUIDv7、**ent ORM、PostgreSQL 16** + ADR 模板
+- **P23 质量门控系统（可执行）**：
+  - `internal/gates/` 包：Severity 枚举 / Gate 接口 / Runner（fail-fast on NON_NEGOTIABLE）
+  - 7 个门控实现：coverage / lint / security / docker_build / schema_migration / docs_completeness / skill_validation
+  - `cmd/constitution-gates` CLI runner（-gate / -format / -threshold / -timeout / -workdir）
+  - 25 个单元测试覆盖 Runner 行为与各门控
+  - constitution.yaml v1.2.0 绑定 7 门 + execution config
+- 顶层入口文档：`CONTRIBUTING.md` / `docs/API.md` / `docs/ARCHITECTURE.md`（导航） / `docs/OPERATIONS.md` / `docs/TROUBLESHOOTING.md` / `docs/MIGRATION.md` / `docs/SECURITY.md`
+- 发布工程：`docs/SEMVER.md` / `docs/RELEASE.md` / `docs/RELEASE_CHECKLIST.md` / `docs/ROLLBACK.md` / `docs/INCIDENT_RESPONSE.md` / `docs/ONCALL.md` / `templates/slo_report.md` / `templates/customer_advisory.md`
+- 数据迁移：`scripts/migrate_v2.0.1_to_v2.1.0.sh`（--dry-run / --rollback 支持）
+- 兼容性测试：`tests/compat/v2.0.1_compat_test.go`（`//go:build compat`）
+
+### Changed
+- Telemetry 导出别名：`NewRedactHandler` / `SensitiveCfg`（P19.11 path）/ `LogWithTrace`（P19.12 path）
 
 ## [2.0.1] - 2026-06-09
 

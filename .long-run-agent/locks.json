@@ -199,6 +199,38 @@
       "claimed_at": "2026-06-10T06:57:17.618119",
       "last_heartbeat": "2026-06-10T06:57:17.618119",
       "checkpoint": null
+    },
+    "task_023_12": {
+      "session_id": "task_023_12_202606100659_e8b7",
+      "task_id": "task_023_12",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:59:19.275202",
+      "last_heartbeat": "2026-06-10T06:59:19.275202",
+      "checkpoint": null
+    },
+    "task_023_13": {
+      "session_id": "task_023_13_202606100659_f223",
+      "task_id": "task_023_13",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:59:19.350391",
+      "last_heartbeat": "2026-06-10T06:59:19.350391",
+      "checkpoint": null
+    },
+    "task_023_14": {
+      "session_id": "task_023_14_202606100659_995a",
+      "task_id": "task_023_14",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:59:19.427248",
+      "last_heartbeat": "2026-06-10T06:59:19.427248",
+      "checkpoint": null
+    },
+    "task_023_15": {
+      "session_id": "task_023_15_202606100659_eea2",
+      "task_id": "task_023_15",
+      "status": "claimed",
+      "claimed_at": "2026-06-10T06:59:19.503219",
+      "last_heartbeat": "2026-06-10T06:59:19.503219",
+      "checkpoint": null
     }
   }
 }

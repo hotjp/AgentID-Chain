@@ -223,8 +223,8 @@ func (h *DurationHistogram) Percentile(p float64) time.Duration {
 		return 0
 	}
 	var cum int64
-	for i, c := range h.counts {
-		cum += c.Load()
+	for i := range h.counts {
+		cum += h.counts[i].Load()
 		if cum >= target {
 			if i < len(h.buckets) {
 				return h.buckets[i]

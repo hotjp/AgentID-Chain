@@ -80,6 +80,7 @@ func TestAAP_VersionPrefix(t *testing.T) {
 }
 
 func TestAAP_AgentUUIDEmptyContext(t *testing.T) {
+	//lint:ignore SA1012 intentional nil ctx test
 	if uuid := AgentUUIDFromContext(nil); uuid != "" {
 		t.Errorf("nil ctx = %q", uuid)
 	}

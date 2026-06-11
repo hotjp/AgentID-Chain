@@ -29,7 +29,7 @@ func DefaultUAConfig() UAConfig {
 
 // UABlock 返回 UA 拦截中间件。
 func UABlock(cfg UAConfig) HandlerFunc {
-	if cfg.BlockEmpty == false && len(cfg.BlockPatterns) == 0 && len(cfg.AllowList) == 0 {
+	if !cfg.BlockEmpty && len(cfg.BlockPatterns) == 0 && len(cfg.AllowList) == 0 {
 		cfg = DefaultUAConfig()
 	}
 	block := make([]string, len(cfg.BlockPatterns))

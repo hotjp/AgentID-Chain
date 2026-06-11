@@ -43,6 +43,7 @@ func TestRequestID_Passthrough(t *testing.T) {
 }
 
 func TestRequestID_Empty(t *testing.T) {
+	//lint:ignore SA1012 intentional nil ctx test
 	if id := RequestIDFromContext(nil); id != "" {
 		t.Errorf("nil ctx = %q", id)
 	}

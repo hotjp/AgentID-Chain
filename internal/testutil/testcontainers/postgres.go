@@ -92,8 +92,8 @@ type PostgresContainer struct {
 	dbName      string
 	user        string
 	password    string
-	startedOnce sync.Once
-	startErr    error
+	startedOnce sync.Once //lint:ignore U1000 reserved for single-init guard
+	startErr    error     //lint:ignore U1000 reserved for capturing init failure
 }
 
 // NewPostgresContainer 启动容器（如失败返回 error，调用方决定 skip / fail）。

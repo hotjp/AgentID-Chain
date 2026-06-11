@@ -296,6 +296,7 @@ func TestMiddleware_ConnectUnary(t *testing.T) {
 }
 
 func TestFromContext_NilContext(t *testing.T) {
+	//lint:ignore SA1012 intentional nil ctx test
 	if got := FromContext(nil); got != nil {
 		t.Errorf("FromContext(nil) = %v, want nil", got)
 	}

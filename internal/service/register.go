@@ -71,7 +71,7 @@ type RegisterService struct {
 	chain       ChainAdapter
 	audit       AuditNotifier
 	provider    IdentityProvider // 用于 Exists 检查
-	defaultReg  time.Duration
+	defaultReg  time.Duration     //lint:ignore U1000 reserved for default registration timeout
 }
 
 // NewRegisterService 构造 RegisterService。

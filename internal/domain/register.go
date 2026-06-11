@@ -107,7 +107,7 @@ func RegisterAgent(gen UUIDGenerator, in RegisterInput) (*RegisterOutput, error)
 	if gen == nil {
 		gen = defaultUUIDGenerator
 	}
-	if in.Level.IsValid() == false {
+	if !in.Level.IsValid() {
 		return nil, fmt.Errorf("%w: invalid level %d", ErrInvalidLevel, uint8(in.Level))
 	}
 	if in.PublicKey == "" {

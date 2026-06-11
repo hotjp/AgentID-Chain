@@ -130,6 +130,7 @@ func TestWithRequestID(t *testing.T) {
 	buf := &bytes.Buffer{}
 	cfg := LogConfig{ServiceName: "t", Format: "json"}
 	logger := NewServiceLoggerTo(cfg, buf)
+	//lint:ignore SA1012 intentional nil ctx test
 	scoped := WithRequestID(nil, logger, "req-123")
 	scoped.Info("test")
 	var m map[string]any

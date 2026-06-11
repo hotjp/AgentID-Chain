@@ -38,7 +38,7 @@ type OnchainConfig struct {
 
 // OnchainBackend 纯链上身份后端。
 type OnchainBackend struct {
-	mu      sync.RWMutex
+	mu      sync.RWMutex //lint:ignore U1000 reserved for chain access serialization
 	adapter chain_adapter.BaseChainAdapter
 	cache   Cache
 	cfg     OnchainConfig

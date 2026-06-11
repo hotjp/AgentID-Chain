@@ -44,7 +44,7 @@ type HybridConfig struct {
 
 // HybridBackend 混合身份后端。
 type HybridBackend struct {
-	mu       sync.RWMutex
+	mu       sync.RWMutex //lint:ignore U1000 reserved for hybrid concurrency control
 	chain    *OnchainBackend
 	local    *LocalBackend
 	cfg      HybridConfig

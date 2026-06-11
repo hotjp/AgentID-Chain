@@ -48,7 +48,7 @@ type rule struct {
 	intent  Intent
 	keywords []string
 	// antiKeywords 出现则降权（不绝对屏蔽）。
-	antiKeywords []string
+	antiKeywords []string //lint:ignore U1000 reserved for negative-weight scoring
 	// weight 基础权重。
 	weight float64
 }

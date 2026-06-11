@@ -28,24 +28,6 @@ func validPubKeyB64() string {
 	return base64.RawURLEncoding.EncodeToString(pub)
 }
 
-type mockProvider struct {
-	service.IdentityProvider
-	exists bool
-}
-
-func (m *mockProvider) Exists(_ context.Context, _ domain.UUID) (bool, error) { return m.exists, nil }
-func (m *mockProvider) BackendName() string                                       { return "mock" }
-func (m *mockProvider) HealthCheck(context.Context) error                          { return nil }
-func (m *mockProvider) Load(context.Context, domain.UUID) (*domain.Agent, error)  {
-	return nil, errors.New("not found")
-}
-func (m *mockProvider) LoadByOwner(context.Context, string) ([]*domain.Agent, error) {
-	return nil, nil
-}
-func (m *mockProvider) LoadByPubKey(context.Context, ed25519.PublicKey) (*domain.Agent, error) {
-	return nil, nil
-}
-
 func newTestHandler(t *testing.T) *APIHandler {
 	t.Helper()
 	// 构造一个最小 service 集（直接用 nil 让 service unavailable 路径走一遍）

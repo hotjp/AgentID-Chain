@@ -23,7 +23,7 @@ type mockStore struct {
 	agents       map[string]*storage.AgentRecord
 	perms        map[string]uint64
 	putAgentErr  error
-	existsBefore bool
+	existsBefore bool //lint:ignore U1000 reserved for exists-check test scenarios
 }
 
 func newMockStore() *mockStore {

@@ -26,7 +26,7 @@ func TestStatusLegalInvariant(t *testing.T) {
 	a.State = AgentState("invalid")
 	v = StatusLegalInvariant{}.Check(a, time.Now())
 	if v == nil {
-		t.Error("expected violation")
+		t.Fatal("expected violation")
 	}
 	if v.Invariant != "status_legal" {
 		t.Errorf("violation name = %s", v.Invariant)

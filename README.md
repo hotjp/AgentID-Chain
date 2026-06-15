@@ -5,15 +5,15 @@
 [![Status](https://img.shields.io/badge/status-在建-yellow.svg)](#)
 [![Go](https://img.shields.io/badge/go-1.26.1-00ADD8.svg)](https://go.dev/)
 [![Spec](https://img.shields.io/badge/spec-v2.0.1%20FROZEN-blue.svg)](docs/AgentID-Chain-技术文档-v2.0.1.md)
-[![Build](https://github.com/agentid-chain/agentid-chain/actions/workflows/build.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/build.yml)
-[![Test](https://github.com/agentid-chain/agentid-chain/actions/workflows/test.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/test.yml)
-[![Lint](https://github.com/agentid-chain/agentid-chain/actions/workflows/lint.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/lint.yml)
-[![Coverage](https://github.com/agentid-chain/agentid-chain/actions/workflows/coverage-check.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/coverage-check.yml)
-[![Docker Build](https://github.com/agentid-chain/agentid-chain/actions/workflows/docker-build.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/docker-build.yml)
-[![Security](https://github.com/agentid-chain/agentid-chain/actions/workflows/security.yml/badge.svg)](https://github.com/agentid-chain/agentid-chain/actions/workflows/security.yml)
-[![codecov](https://codecov.io/gh/agentid-chain/agentid-chain/branch/main/graph/badge.svg)](https://codecov.io/gh/agentid-chain/agentid-chain)
+[![Build](https://github.com/hotjp/AgentID-Chain/actions/workflows/build.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/build.yml)
+[![Test](https://github.com/hotjp/AgentID-Chain/actions/workflows/test.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/test.yml)
+[![Lint](https://github.com/hotjp/AgentID-Chain/actions/workflows/lint.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/lint.yml)
+[![Coverage](https://github.com/hotjp/AgentID-Chain/actions/workflows/coverage-check.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/coverage-check.yml)
+[![Docker Build](https://github.com/hotjp/AgentID-Chain/actions/workflows/docker-build.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/docker-build.yml)
+[![Security](https://github.com/hotjp/AgentID-Chain/actions/workflows/security.yml/badge.svg)](https://github.com/hotjp/AgentID-Chain/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/hotjp/AgentID-Chain/branch/main/graph/badge.svg)](https://codecov.io/gh/hotjp/AgentID-Chain)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Scorecard](https://img.shields.io/ossf-scorecard/github.com/agentid-chain/agentid-chain?label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/agentid-chain/agentid-chain)
+[![Scorecard](https://img.shields.io/ossf-scorecard/github.com/hotjp/AgentID-Chain?label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/hotjp/AgentID-Chain)
 
 AgentID-Chain 是面向 AI Agent 生态的分布式身份与权限网关。在保持「混合存储 + 多协议接入」核心能力的基础上，
 v2.0.1 将数据库统一为 PostgreSQL，对齐 5 层架构规范，并补全 AAP / A2A / MoltCaptcha 协议细节，
@@ -35,7 +35,7 @@ v2.0.1 将数据库统一为 PostgreSQL，对齐 5 层架构规范，并补全 A
 
 ---
 
-## 🚀 快速开始
+## 快速开始 🚀
 
 > 详细安装与配置请参考 [§7 Quick Start](docs/AgentID-Chain-技术文档-v2.0.1.md#7-quick-start)
 
@@ -155,8 +155,8 @@ L1  Storage     ──┘  Backend 接口 → PostgreSQL / 链上 / Redis
 
 ## 📄 License
 
-待定（项目初始化阶段）。
+[Apache License 2.0](LICENSE) — 详见 [LICENSE](LICENSE) 文件。
 
 ---
 
-*Last updated: 2026-06-08*
+*Last updated: 2026-06-15*
